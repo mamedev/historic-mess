@@ -200,6 +200,7 @@ struct rc_option video_opts[] =
 	{ "sleep", NULL, rc_bool, &allow_sleep, "1", 0, 0, NULL, "allow MESS to give back time to the system when it's not needed" },
 #endif
 	{ "rdtsc", NULL, rc_bool, &win_force_rdtsc, "0", 0, 0, NULL, "prefer RDTSC over QueryPerformanceCounter for timing" },
+	{ "high_priority", NULL, rc_bool, &win_high_priority, "0", 0, 0, NULL, "increase thread priority" },
 	{ NULL,	NULL, rc_end, NULL, NULL, 0, 0,	NULL, NULL }
 };
 
@@ -639,8 +640,8 @@ static void update_palette(struct mame_display *display)
 	// loop over dirty colors in batches of 32
 	for (i = 0; i < display->game_palette_entries; i += 32)
 	{
-//		UINT32 dirtyflags = palette_lookups_invalid ? ~0 : display->game_palette_dirty[i / 32];
-		UINT32 dirtyflags = display->game_palette_dirty[i / 32];
+		UINT32 dirtyflags = palette_lookups_invalid ? ~0 : display->game_palette_dirty[i / 32];
+//		UINT32 dirtyflags = display->game_palette_dirty[i / 32];
 		if (dirtyflags)
 		{
 			display->game_palette_dirty[i / 32] = 0;
@@ -661,7 +662,7 @@ static void update_palette(struct mame_display *display)
 				}
 		}
 	}
-	
+
 	// reset the invalidate flag
 	palette_lookups_invalid = 0;
 }
@@ -831,7 +832,7 @@ void osd_update_video_and_audio(struct mame_display *display)
 		win_set_debugger_focus(display->debug_focus);
 
 	// if the game palette has changed, update it
-	if (display->changed_flags & GAME_PALETTE_CHANGED)
+	if (palette_lookups_invalid || (display->changed_flags & GAME_PALETTE_CHANGED))
 		update_palette(display);
 
 	// if we're not skipping this frame, draw it
