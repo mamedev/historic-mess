@@ -10,6 +10,9 @@
 #include <dirent.h>
 #include <unzip.h>
 
+#ifdef MESS
+#include "mess/msdos.h"
+#endif
 
 int silentident,knownstatus;
 
@@ -304,7 +307,7 @@ enum { LIST_LIST = 1, LIST_LISTINFO, LIST_LISTFULL, LIST_LISTSAMDIR, LIST_LISTRO
 enum { LIST_LIST = 1, LIST_LISTINFO, LIST_LISTFULL, LIST_LISTSAMDIR, LIST_LISTROMS, LIST_LISTSAMPLES,
 		LIST_LMR, LIST_LISTDETAILS, LIST_LISTGAMES, LIST_LISTCLONES,
 		LIST_WRONGORIENTATION, LIST_WRONGFPS, LIST_LISTCRC, LIST_LISTDUPCRC, LIST_WRONGMERGE,
-		LIST_SOURCEFILE, LIST_EXTENSIONS };
+		LIST_SOURCEFILE, LIST_MESSINFO };
 #endif
 
 
@@ -371,7 +374,7 @@ int frontend_help (int argc, char **argv)
 		if (!stricmp(argv[i],"-wrongfps")) list = LIST_WRONGFPS;
 		if (!stricmp(argv[i],"-noclones")) listclones = 0;
 		#ifdef MESS
-				if (!stricmp(argv[i],"-listextensions")) list = LIST_EXTENSIONS;
+				if (!stricmp(argv[i],"-listextensions")) list = LIST_MESSINFO;
 		#endif
 
 
@@ -419,38 +422,31 @@ int frontend_help (int argc, char **argv)
 	switch (list)  /* front-end utilities ;) */
 	{
 
-		#ifdef MESS
-		case LIST_EXTENSIONS: /* simple games list */
-					i = 0; j = 0;
-					printf("\nSYSTEM    IMAGE FILE EXTENSIONS SUPPORTED\n");
-					printf("--------  -------------------------------\n");
-					while (drivers[i])
-					{
-						if ((listclones || drivers[i]->clone_of == 0
-								|| (drivers[i]->clone_of->flags & NOT_A_DRIVER)
-								) && !strwildcmp(gamename, drivers[i]->name))
-						{
-							printf("%-10s",drivers[i]->name);
-							j=0;
-							while(drivers[i]->file_extension[j]!=0)
-							{
-								if (drivers[i]->file_extension != 0 && drivers[i]->file_extension[0] != 0)
-								{
-									printf(".%-5s",drivers[i]->file_extension[j]);
-
-								}
-							j++;
-							}
-							printf("\n");
-						}
-						i++;
-					}
-					return 0;
-					break;
+        #ifdef MESS
+		case LIST_MESSINFO: /* all mess specific calls here */
+		{
+			for (i=1;i<argc;i++)
+			{
+				/* list all mess info options here */
+				if (
+					!stricmp(argv[i],"-listextensions")
+				   )
+			 	{
+					/* send the gamename and arg to mess.c */
+					list_mess_info(gamename, argv[i]);
+				}
+			}
+			return 0;
+			break;
+		}
 		#endif
 
 		case LIST_LIST: /* simple games list */
+			#ifndef MESS
 			printf("\nMAME currently supports the following games:\n\n");
+			#else
+			printf("\nMESS currently supports the following systems:\n\n");
+			#endif
 			i = 0; j = 0;
 			while (drivers[i])
 			{
@@ -468,8 +464,12 @@ int frontend_help (int argc, char **argv)
 			if (j % 8) printf("\n");
 			printf("\n");
 			if (j != i) printf("Total ROM sets displayed: %4d - ", j);
+			#ifndef MESS
 			printf("Total ROM sets supported: %4d\n", i);
-			return 0;
+			#else
+			printf("Total Systems supported: %4d\n", i);
+			#endif
+            return 0;
 			break;
 
 		case LIST_LISTFULL: /* games list with descriptions */
@@ -536,8 +536,8 @@ int frontend_help (int argc, char **argv)
 						}
 					}
 #endif
-					i++;
 				}
+				i++;
 			}
 			return 0;
 			break;
@@ -725,8 +725,8 @@ int frontend_help (int argc, char **argv)
 			i = 0;
 			while (drivers[i])
 			{
-				if (drivers[i]->clone_of &&
-						((!strwildcmp(gamename,drivers[i]->name) && !(drivers[i]->clone_of->flags & NOT_A_DRIVER))
+				if (drivers[i]->clone_of && !(drivers[i]->clone_of->flags & NOT_A_DRIVER) &&
+						(!strwildcmp(gamename,drivers[i]->name)
 								|| !strwildcmp(gamename,drivers[i]->clone_of->name)))
 					printf("%-8s %-8s\n",drivers[i]->name,drivers[i]->clone_of->name);
 				i++;
@@ -917,7 +917,7 @@ int frontend_help (int argc, char **argv)
 						{
 							if (j != i &&
 								drivers[j]->clone_of &&
-								(drivers[i]->clone_of->flags & NOT_A_DRIVER) == 0 &&
+								(drivers[j]->clone_of->flags & NOT_A_DRIVER) == 0 &&
 								(drivers[j]->clone_of == drivers[i] ||
 								(i < j && drivers[j]->clone_of == drivers[i]->clone_of)))
 							{
