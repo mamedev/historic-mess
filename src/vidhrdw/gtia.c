@@ -9,6 +9,7 @@
 #include "driver.h"
 #include "cpu/m6502/m6502.h"
 #include "includes/atari.h"
+#include "sound/dac.h"
 
 GTIA    gtia;
 
@@ -649,10 +650,13 @@ WRITE8_HANDLER ( atari_gtia_w )
 		if (data == gtia.w.cons)
 			break;
 		gtia.w.cons  = data;
-		if (gtia.w.cons & 0x08)
-			DAC_data_w(0, -120);
-		else
-			DAC_data_w(0, +120);
+		if (sndti_token(SOUND_DAC, 0))
+		{
+			if (gtia.w.cons & 0x08)
+				DAC_data_w(0, -120);
+			else
+				DAC_data_w(0, +120);
+		}
 		break;
     }
 }
