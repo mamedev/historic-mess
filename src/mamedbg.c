@@ -72,8 +72,6 @@ int debug_trace_delay = 0;	/* set to 0 to force a screen update */
 
 #define DBG_WINDOWS 5
 
-#define ICOUNT_SPECIAL_REG	255
-
 /* Some convenience macros to address the cpu'th window */
 #define WIN_CMDS(cpu)	(cpu*DBG_WINDOWS+EDIT_CMDS)
 #define WIN_REGS(cpu)	(cpu*DBG_WINDOWS+EDIT_REGS)
@@ -870,7 +868,7 @@ static int readkey(void)
 	{
 		if ((cursor_flash++ & 15) == 0)
 			toggle_cursor(Machine->debug_bitmap, Machine->debugger_font);
-		draw_screen(0);	/* so we can change stuff in RAM and see the effect on screen */
+		draw_screen();	/* so we can change stuff in RAM and see the effect on screen */
 		update_video_and_audio();
 
 		k = KEYCODE_NONE;
@@ -1783,7 +1781,7 @@ static unsigned get_register_id( char **parg, int *size )
 	for( i = 0; i < DBGREGS.count; i++ )
 	{
 		l = strlen( DBGREGS.name[i] );
-		if( l > 0 && !strncmp( *parg, DBGREGS.name[i], l ) )
+		if( l > 0 && !strnicmp( *parg, DBGREGS.name[i], l ) )
 		{
 			if( !isalnum( (*parg)[l] ) )
 			{
@@ -1942,10 +1940,7 @@ static void trace_output( void )
 			if( TRACE.regs[0] )
 			{
 				for( i = 0; i < MAX_REGS && TRACE.regs[i]; i++ )
-					if( TRACE.regs[i] == ICOUNT_SPECIAL_REG )
-						dst += sprintf( dst, "%d ", cpu_geticount() );
-					else
-						dst += sprintf( dst, "%s ", cpu_dump_reg(TRACE.regs[i]) );
+					dst += sprintf( dst, "%s ", cpu_dump_reg(TRACE.regs[i]) );
 			}
 			dst += sprintf( dst, "%0*X: ", addr_width, pc );
 			cpu_dasm( dst, pc );
@@ -2134,7 +2129,7 @@ static const char *name_rdmem( unsigned base )
 	static char buffer[16][79+1];
 	static int which = 0;
 	const struct MachineCPU *cpu = &Machine->drv->cpu[activecpu];
-	const struct MemoryReadAddress *mr = cpu->memory_read;
+	const struct Memory_ReadAddress *mr = cpu->memory_read;
 	int ram_cnt = 1, nop_cnt = 1;
 	const char *name;
 	char *dst;
@@ -2143,103 +2138,106 @@ static const char *name_rdmem( unsigned base )
 	dst = buffer[which];
 	*dst = '\0';
 
-	while( *dst == '\0' && mr->start != -1 )
+	while( *dst == '\0' && !IS_MEMORY_END(mr))
 	{
-		if( base >= mr->start && base <= mr->end )
+		if (!IS_MEMORY_MARKER(mr))
 		{
-			unsigned offset = base - mr->start;
+			if( base >= mr->start && base <= mr->end )
+			{
+				unsigned offset = base - mr->start;
 
 #if 0
 /* Won't work since the MemoryWrite doesn't support ->base anymore */
-			if( mr->description )
-				sprintf(dst, "%s+%04X", mr->description, lshift(offset) );
-			else
-			if( mr->base && *mr->base == videoram )
-				sprintf(dst, "video+%04X", lshift(offset) );
-			else
-			if( mr->base && *mr->base == colorram )
-				sprintf(dst, "color+%04X", lshift(offset) );
-			else
-			if( mr->base && *mr->base == spriteram )
-				sprintf(dst, "sprite+%04X", lshift(offset) );
-			else
+				if( mr->description )
+					sprintf(dst, "%s+%04X", mr->description, lshift(offset) );
+				else
+				if( mr->base && *mr->base == videoram )
+					sprintf(dst, "video+%04X", lshift(offset) );
+				else
+				if( mr->base && *mr->base == colorram )
+					sprintf(dst, "color+%04X", lshift(offset) );
+				else
+				if( mr->base && *mr->base == spriteram )
+					sprintf(dst, "sprite+%04X", lshift(offset) );
+				else
 #endif
+				switch( (FPTR)mr->handler )
+				{
+				case (FPTR)MRA_RAM:
+					sprintf(dst, "RAM%d+%04X", ram_cnt, lshift(offset) );
+					break;
+				case (FPTR)MRA_ROM:
+					name = name_rom("ROM", REGION_CPU1+activecpu, &base, mr->start );
+					sprintf(dst, "%s+%04X", name, lshift(base) );
+					break;
+				case (FPTR)MRA_BANK1: case (FPTR)MRA_BANK2:
+				case (FPTR)MRA_BANK3: case (FPTR)MRA_BANK4:
+				case (FPTR)MRA_BANK5: case (FPTR)MRA_BANK6:
+				case (FPTR)MRA_BANK7: case (FPTR)MRA_BANK8:
+				case (FPTR)MRA_BANK9: case (FPTR)MRA_BANK10:
+				case (FPTR)MRA_BANK11: case (FPTR)MRA_BANK12:
+				case (FPTR)MRA_BANK13: case (FPTR)MRA_BANK14:
+				case (FPTR)MRA_BANK15: case (FPTR)MRA_BANK16:
+					sprintf(dst, "BANK%d+%04X", 1 + (int)(MRA_BANK1) - (int)(mr->handler), lshift(offset) );
+					break;
+				case (FPTR)MRA_NOP:
+					sprintf(dst, "NOP%d+%04X", nop_cnt, lshift(offset) );
+					break;
+				default:
+					if( (FPTR)mr->handler == (FPTR)input_port_0_r )
+						sprintf(dst, "input_port_0+%04X", lshift(offset) );
+					else
+					if( (FPTR)mr->handler == (FPTR)input_port_1_r )
+						sprintf(dst, "input_port_1+%04X", lshift(offset) );
+					else
+					if( (FPTR)mr->handler == (FPTR)input_port_2_r )
+						sprintf(dst, "input_port_2+%04X", lshift(offset) );
+					else
+					if( (FPTR)mr->handler == (FPTR)input_port_3_r )
+						sprintf(dst, "input_port_3+%04X", lshift(offset) );
+					else
+					if( (FPTR)mr->handler == (FPTR)input_port_4_r )
+						sprintf(dst, "input_port_4+%04X", lshift(offset) );
+					else
+					if( (FPTR)mr->handler == (FPTR)input_port_5_r )
+						sprintf(dst, "input_port_5+%04X", lshift(offset) );
+					else
+					if( (FPTR)mr->handler == (FPTR)input_port_6_r )
+						sprintf(dst, "input_port_6+%04X", lshift(offset) );
+					else
+					if( (FPTR)mr->handler == (FPTR)input_port_7_r )
+						sprintf(dst, "input_port_7+%04X", lshift(offset) );
+					else
+					if( (FPTR)mr->handler == (FPTR)input_port_8_r )
+						sprintf(dst, "input_port_8+%04X", lshift(offset) );
+					else
+					if( (FPTR)mr->handler == (FPTR)input_port_9_r )
+						sprintf(dst, "input_port_9+%04X", lshift(offset) );
+					else
+					if( (FPTR)mr->handler == (FPTR)input_port_10_r )
+						sprintf(dst, "input_port_10+%04X", lshift(offset) );
+					else
+					if( (FPTR)mr->handler == (FPTR)input_port_11_r )
+						sprintf(dst, "input_port_11+%04X", lshift(offset) );
+					else
+					if( (FPTR)mr->handler == (FPTR)input_port_12_r )
+						sprintf(dst, "input_port_12+%04X", lshift(offset) );
+					else
+					if( (FPTR)mr->handler == (FPTR)input_port_13_r )
+						sprintf(dst, "input_port_13+%04X", lshift(offset) );
+					else
+					if( (FPTR)mr->handler == (FPTR)input_port_14_r )
+						sprintf(dst, "input_port_14+%04X", lshift(offset) );
+					else
+					if( (FPTR)mr->handler == (FPTR)input_port_15_r )
+						sprintf(dst, "input_port_15+%04X", lshift(offset) );
+				}
+			}
 			switch( (FPTR)mr->handler )
 			{
-			case (FPTR)MRA_RAM:
-				sprintf(dst, "RAM%d+%04X", ram_cnt, lshift(offset) );
-				break;
-			case (FPTR)MRA_ROM:
-				name = name_rom("ROM", REGION_CPU1+activecpu, &base, mr->start );
-				sprintf(dst, "%s+%04X", name, lshift(base) );
-				break;
-			case (FPTR)MRA_BANK1: case (FPTR)MRA_BANK2:
-			case (FPTR)MRA_BANK3: case (FPTR)MRA_BANK4:
-			case (FPTR)MRA_BANK5: case (FPTR)MRA_BANK6:
-			case (FPTR)MRA_BANK7: case (FPTR)MRA_BANK8:
-			case (FPTR)MRA_BANK9: case (FPTR)MRA_BANK10:
-			case (FPTR)MRA_BANK11: case (FPTR)MRA_BANK12:
-			case (FPTR)MRA_BANK13: case (FPTR)MRA_BANK14:
-			case (FPTR)MRA_BANK15: case (FPTR)MRA_BANK16:
-				sprintf(dst, "BANK%d+%04X", 1 + (int)(MRA_BANK1) - (int)(mr->handler), lshift(offset) );
-                break;
-			case (FPTR)MRA_NOP:
-				sprintf(dst, "NOP%d+%04X", nop_cnt, lshift(offset) );
-				break;
-			default:
-				if( (FPTR)mr->handler == (FPTR)input_port_0_r )
-					sprintf(dst, "input_port_0+%04X", lshift(offset) );
-				else
-				if( (FPTR)mr->handler == (FPTR)input_port_1_r )
-					sprintf(dst, "input_port_1+%04X", lshift(offset) );
-				else
-				if( (FPTR)mr->handler == (FPTR)input_port_2_r )
-					sprintf(dst, "input_port_2+%04X", lshift(offset) );
-				else
-				if( (FPTR)mr->handler == (FPTR)input_port_3_r )
-					sprintf(dst, "input_port_3+%04X", lshift(offset) );
-				else
-				if( (FPTR)mr->handler == (FPTR)input_port_4_r )
-					sprintf(dst, "input_port_4+%04X", lshift(offset) );
-				else
-				if( (FPTR)mr->handler == (FPTR)input_port_5_r )
-					sprintf(dst, "input_port_5+%04X", lshift(offset) );
-				else
-				if( (FPTR)mr->handler == (FPTR)input_port_6_r )
-					sprintf(dst, "input_port_6+%04X", lshift(offset) );
-				else
-				if( (FPTR)mr->handler == (FPTR)input_port_7_r )
-					sprintf(dst, "input_port_7+%04X", lshift(offset) );
-				else
-				if( (FPTR)mr->handler == (FPTR)input_port_8_r )
-					sprintf(dst, "input_port_8+%04X", lshift(offset) );
-				else
-				if( (FPTR)mr->handler == (FPTR)input_port_9_r )
-					sprintf(dst, "input_port_9+%04X", lshift(offset) );
-				else
-				if( (FPTR)mr->handler == (FPTR)input_port_10_r )
-					sprintf(dst, "input_port_10+%04X", lshift(offset) );
-				else
-				if( (FPTR)mr->handler == (FPTR)input_port_11_r )
-					sprintf(dst, "input_port_11+%04X", lshift(offset) );
-				else
-				if( (FPTR)mr->handler == (FPTR)input_port_12_r )
-					sprintf(dst, "input_port_12+%04X", lshift(offset) );
-				else
-				if( (FPTR)mr->handler == (FPTR)input_port_13_r )
-					sprintf(dst, "input_port_13+%04X", lshift(offset) );
-				else
-				if( (FPTR)mr->handler == (FPTR)input_port_14_r )
-					sprintf(dst, "input_port_14+%04X", lshift(offset) );
-				else
-				if( (FPTR)mr->handler == (FPTR)input_port_15_r )
-					sprintf(dst, "input_port_15+%04X", lshift(offset) );
+			case (FPTR)MRA_RAM: ram_cnt++; break;
+			case (FPTR)MRA_NOP: nop_cnt++; break;
 			}
-		}
-		switch( (FPTR)mr->handler )
-		{
-		case (FPTR)MRA_RAM: ram_cnt++; break;
-		case (FPTR)MRA_NOP: nop_cnt++; break;
 		}
 		mr++;
 	}
@@ -2256,7 +2254,7 @@ static const char *name_wrmem( unsigned base )
 	static char buffer[16][79+1];
 	static int which = 0;
 	const struct MachineCPU *cpu = &Machine->drv->cpu[activecpu];
-	const struct MemoryWriteAddress *mw = cpu->memory_write;
+	const struct Memory_WriteAddress *mw = cpu->memory_write;
 	int ram_cnt = 1, nop_cnt = 1;
 	const char *name;
 	char *dst;
@@ -2266,57 +2264,62 @@ static const char *name_wrmem( unsigned base )
 	*dst = '\0';
 
 	ram_cnt = nop_cnt = 1;
-	while( *dst == '\0' && mw->start != -1 )
+	while( *dst == '\0' && !IS_MEMORY_END(mw))
 	{
-		if( base >= mw->start && base <= mw->end )
+		if (!IS_MEMORY_MARKER(mw))
 		{
+			if( base >= mw->start && base <= mw->end )
+			{
 #if 0
 /* Won't work since the MemoryRead doesn't support ->description anymore */
-			if( mw->description )
-				sprintf(dst, "%s+%04X", mw->description, lshift(base - mw->start) );
-			else
+				if( mw->description )
+					sprintf(dst, "%s+%04X", mw->description, lshift(base - mw->start) );
+				else
 #endif
-			if( mw->base && *mw->base == videoram )
-				sprintf(dst, "video+%04X", lshift(base - mw->start) );
-			else
-			if( mw->base && *mw->base == colorram )
-				sprintf(dst, "color+%04X", lshift(base - mw->start) );
-			else
-			if( mw->base && *mw->base == spriteram )
-				sprintf(dst, "sprite+%04X", lshift(base - mw->start) );
-			else
+#if 0
+				if( mw->base && *mw->base == videoram )
+					sprintf(dst, "video+%04X", lshift(base - mw->start) );
+				else
+				if( mw->base && *mw->base == colorram )
+					sprintf(dst, "color+%04X", lshift(base - mw->start) );
+				else
+				if( mw->base && *mw->base == spriteram )
+					sprintf(dst, "sprite+%04X", lshift(base - mw->start) );
+				else
+#endif
+				switch( (FPTR)mw->handler )
+				{
+				case (FPTR)MWA_RAM:
+					sprintf(dst, "RAM%d+%04X", ram_cnt, lshift(base - mw->start) );
+					break;
+				case (FPTR)MWA_ROM:
+					name = name_rom("ROM", REGION_CPU1+activecpu, &base, mw->start );
+					sprintf(dst, "%s+%04X", name, lshift(base) );
+					break;
+				case (FPTR)MWA_RAMROM:
+					name = name_rom("RAMROM", REGION_CPU1+activecpu, &base, mw->start);
+					sprintf(dst, "%s+%04X", name, lshift(base) );
+					break;
+				case (FPTR)MWA_BANK1: case (FPTR)MWA_BANK2:
+				case (FPTR)MWA_BANK3: case (FPTR)MWA_BANK4:
+				case (FPTR)MWA_BANK5: case (FPTR)MWA_BANK6:
+				case (FPTR)MWA_BANK7: case (FPTR)MWA_BANK8:
+				case (FPTR)MWA_BANK9: case (FPTR)MWA_BANK10:
+				case (FPTR)MWA_BANK11: case (FPTR)MWA_BANK12:
+				case (FPTR)MWA_BANK13: case (FPTR)MWA_BANK14:
+				case (FPTR)MWA_BANK15: case (FPTR)MWA_BANK16:
+					sprintf(dst, "BANK%d+%04X", 1 + (int)(MWA_BANK1) - (int)(mw->handler), lshift(base - mw->start) );
+					break;
+				case (FPTR)MWA_NOP:
+					sprintf(dst, "NOP%d+%04X", nop_cnt, lshift(base - mw->start) );
+					break;
+				}
+			}
 			switch( (FPTR)mw->handler )
 			{
-			case (FPTR)MWA_RAM:
-				sprintf(dst, "RAM%d+%04X", ram_cnt, lshift(base - mw->start) );
-				break;
-			case (FPTR)MWA_ROM:
-				name = name_rom("ROM", REGION_CPU1+activecpu, &base, mw->start );
-				sprintf(dst, "%s+%04X", name, lshift(base) );
-				break;
-			case (FPTR)MWA_RAMROM:
-				name = name_rom("RAMROM", REGION_CPU1+activecpu, &base, mw->start);
-				sprintf(dst, "%s+%04X", name, lshift(base) );
-				break;
-			case (FPTR)MWA_BANK1: case (FPTR)MWA_BANK2:
-			case (FPTR)MWA_BANK3: case (FPTR)MWA_BANK4:
-			case (FPTR)MWA_BANK5: case (FPTR)MWA_BANK6:
-			case (FPTR)MWA_BANK7: case (FPTR)MWA_BANK8:
-			case (FPTR)MWA_BANK9: case (FPTR)MWA_BANK10:
-			case (FPTR)MWA_BANK11: case (FPTR)MWA_BANK12:
-			case (FPTR)MWA_BANK13: case (FPTR)MWA_BANK14:
-			case (FPTR)MWA_BANK15: case (FPTR)MWA_BANK16:
-				sprintf(dst, "BANK%d+%04X", 1 + (int)(MWA_BANK1) - (int)(mw->handler), lshift(base - mw->start) );
-				break;
-			case (FPTR)MWA_NOP:
-				sprintf(dst, "NOP%d+%04X", nop_cnt, lshift(base - mw->start) );
-				break;
+			case (FPTR)MRA_RAM: ram_cnt++; break;
+			case (FPTR)MRA_NOP: nop_cnt++; break;
 			}
-		}
-		switch( (FPTR)mw->handler )
-		{
-		case (FPTR)MRA_RAM: ram_cnt++; break;
-		case (FPTR)MRA_NOP: nop_cnt++; break;
 		}
 		mw++;
 	}
@@ -2685,6 +2688,7 @@ static void dump_regs( void )
 			{
 				win_printf( win, "Cycles:%6u\n", cpu_geticount() );
 			}
+			y++;
 		}
 		else
 		{
@@ -2705,6 +2709,7 @@ static void dump_regs( void )
 					else
 						win_printf( win, "%s\n", flags );
 				}
+				y++;
 			}
 			else
 			{
@@ -2723,9 +2728,12 @@ static void dump_regs( void )
 					win_printf( win, "%s\n", flags );
 				}
 				y++;
-				win_printf( win, "Cycles:%6u\n", cpu_geticount() );
+				if( y < h )
+				{
+					win_printf( win, "Cycles:%6u\n", cpu_geticount() );
+				}
+				y++;
 			}
-			y++;
 		}
 	}
 	regs->top = y;
@@ -2764,15 +2772,14 @@ static void dump_regs( void )
 			/* edit structure not yet initialized? */
 			if( regs->count == 0 )
 			{
-				char *p;
+				const char *p;
 				/* Get the cursor position */
 				pedit->x = x;
 				pedit->y = y + regs->base;
-				strncpy( regs->name[j], name, sizeof(regs->name[j]) - 1 );
 				if( strlen(name) >= regs->max_width )
 					regs->max_width = strlen(name) + 1;
 				/* Find a colon */
-				p = strchr( regs->name[j], ':');
+				p = strchr( name, ':' );
 				if( p )
 				{
 					pedit->w = strlen( p + 1 );
@@ -2780,30 +2787,36 @@ static void dump_regs( void )
 				else
 				{
 					/* Or else find an apostrophe */
-					p = strchr( regs->name[j], '\'' );
+					p = strchr( name, '\'' );
 					if( p )
 					{
 						/* Include the apostrophe in the name! */
 						++p;
 						pedit->w = strlen( p );
 					}
+					else
+					{
+						/* TODO: other characters to delimit a register name from it's value? */
+						/* this is certainly wrong :( */
+						p = name;
+						pedit->w = strlen( p );
+					}
 				}
-				/* TODO: other characters to delimit a register name from it's value? */
-				if( p )
+				/* length of the name (total length - length of nibbles) */
+				pedit->n = strlen( name ) - pedit->w;
+
+				/* strip trailing spaces */
+				l = p - name;
+				while( l != 0 && name[ l - 1 ] == ' ' )
 				{
-					/* length of the name (total length - length of nibbles) */
-					pedit->n = strlen( name ) - pedit->w;
-					/* terminate name at (or after) the delimiting character */
-					*p = '\0';
-					/* eventually strip trailing spaces */
-					while( *--p == ' ' ) *p = '\0';
+					l--;
 				}
-				else
+				if( l > sizeof( regs->name[ j ] ) - 1 )
 				{
-					/* this is certainly wrong :( */
-					pedit->w = strlen(regs->name[j]);
-					pedit->n = 0;
+					l = sizeof( regs->name[ j ] ) - 1;
 				}
+				memcpy( regs->name[ j ], name, l );
+				regs->name[ j ][ l ] = 0;
 			}
 			if( y >= regs->base && y < regs->base + h - regs->top )
 			{
@@ -3054,15 +3067,11 @@ static void dump_mem_hex( int which, unsigned len_addr, unsigned len_data )
 		if( (column * 2 / len_data) & 1 )
 			color ^= dim_bright;
 
-		/* edit structure not yet initialized? */
-		if( pedit->w == 0 )
-		{
-			/* store memory edit x,y */
-			pedit->x = win_get_cx( win );
-			pedit->y = win_get_cy( win );
-			pedit->w = 2;
-			pedit->n = order(column % (len_data / 2), len_data / 2);
-		}
+		/* store memory edit x,y */
+		pedit->x = win_get_cx( win );
+		pedit->y = win_get_cy( win );
+		pedit->w = 2;
+		pedit->n = order(column % (len_data / 2), len_data / 2);
 		pedit++;
 
 		win_set_color( win, color );
@@ -3158,7 +3167,7 @@ static void edit_regs( void )
 	i = readkey();
 	k = keyboard_name(i);
 
-	shift = (pedit->w - 1 - regs->nibble) * 4;
+	shift = ( pedit[ regs->idx ].w - 1 - regs->nibble ) * 4;
 	mask = ~(0x0000000f << shift);
 
 	if( strlen(k) == 1 )
@@ -3957,7 +3966,7 @@ static void cmd_brk_regs_set( void )
 	int length;
 
 	DBG.brk_regs = get_register_id( &cmd, &length );
-	if( DBG.brk_regs != INVALID )
+	if( DBG.brk_regs > 0 )
 	{
 		DBG.brk_regs_oldval = cpu_get_reg(DBG.brk_regs);
 		data = get_register_or_value( &cmd, &length );
@@ -4891,18 +4900,15 @@ static void cmd_trace_to_file( void )
 	{
 		while( *cmd )
 		{
-			if( !my_stricmp( cmd, "ICOUNT" ) )
+			regs[regcnt] = get_register_id( &cmd, &length );
+			if( regs[ regcnt ] > 0 )
 			{
-				while( *cmd && !isspace( *cmd ) )
-					cmd++;
-				while( *cmd && isspace( *cmd ) )
-					cmd++;
-				regs[regcnt] = ICOUNT_SPECIAL_REG;
-				length = 1;
+				regcnt++;
 			}
 			else
-				regs[regcnt] = get_register_id( &cmd, &length );
-			if( length ) regcnt++;
+			{
+				break;
+			}
 		}
 		regs[regcnt] = 0;
 
