@@ -16,7 +16,7 @@ INLINE void illegal( void )
 {
 	LOG(("HD6309: illegal opcode at %04x\nVectoring to [$fff0]\n",PC));
 
-	CC |= CC_E; 				/* save entire state */
+	CC |= CC_E | CC_IF | CC_II;
 	PUSHWORD(pPC);
 	PUSHWORD(pU);
 	PUSHWORD(pY);
@@ -226,6 +226,9 @@ INLINE void jmp_di( void )
 INLINE void clr_di( void )
 {
 	DIRECT;
+#ifdef MESS
+	RM(EAD);
+#endif
 	WM(EAD,0);
 	CLR_NZVC;
 	SEZ;
@@ -262,12 +265,11 @@ INLINE void sync( void )
 /* $14 sexw inherent */
 INLINE void sexw( void )
 {
-	UINT32 t;
-	t = SIGNED_16(W);
-	D = t;
-	CLR_NZV;
-	SET_N8(A);
-	if ( D == 0 && W == 0 ) SEZ;
+	UINT16 t;
+	t = SIGNED(F);
+	W = t;
+	CLR_NZ;
+	SET_NZ16(t);
 }
 
 /* $15 ILLEGAL */
@@ -336,7 +338,7 @@ INLINE void sex( void )
 	UINT16 t;
 	t = SIGNED(B);
 	D = t;
-	CLR_NZV;
+	CLR_NZ;
 	SET_NZ16(t);
 }
 
@@ -1036,7 +1038,7 @@ INLINE void tfmpp( void )
 		}
 	}
 	else
-		hd6309_ICount -= 3;   /* Needs three aditional cycles  to get the 6+3n */
+		hd6309_ICount -= 6;   /* Needs six aditional cycles to get the 6+3n */
 }
 
 /* $1139 TFM R0-,R1- */
@@ -1095,7 +1097,7 @@ INLINE void tfmmm( void )
 		}
 	}
 	else
-		hd6309_ICount -= 3;   /* Needs three aditional cycles  to get the 6+3n */
+		hd6309_ICount -= 6;   /* Needs six aditional cycles to get the 6+3n */
 }
 
 /* $113A TFM R0+,R1 */
@@ -1154,7 +1156,7 @@ INLINE void tfmpc( void )
 		}
 	}
 	else
-		hd6309_ICount -= 3;   /* Needs three aditional cycles  to get the 6+3n */
+		hd6309_ICount -= 6;   /* Needs six aditional cycles to get the 6+3n */
 }
 
 /* $113B TFM R0,R1+ */
@@ -1213,7 +1215,7 @@ INLINE void tfmcp( void )
 		}
 	}
 	else
-		hd6309_ICount -= 3;   /* Needs three aditional cycles  to get the 6+3n */
+		hd6309_ICount -= 6;   /* Needs six aditional cycles to get the 6+3n */
 }
 
 /* $30 LEAX indexed --*-- */
@@ -1437,7 +1439,6 @@ INLINE void swi( void )
 	{
 		PUSHBYTE(F);
 		PUSHBYTE(E);
-		hd6309_ICount -= 2;
 	}
 	PUSHBYTE(B);
 	PUSHBYTE(A);
@@ -1612,7 +1613,6 @@ INLINE void swi2( void )
 	{
 		PUSHBYTE(F);
 		PUSHBYTE(E);
-		hd6309_ICount -= 2;
 	}
 	PUSHBYTE(B);
 	PUSHBYTE(A);
@@ -1634,7 +1634,6 @@ INLINE void swi3( void )
 	{
 		PUSHBYTE(F);
 		PUSHBYTE(E);
-		hd6309_ICount -= 2;
 	}
 	PUSHBYTE(B);
 	PUSHBYTE(A);
@@ -2310,6 +2309,9 @@ INLINE void jmp_ix( void )
 INLINE void clr_ix( void )
 {
 	fetch_effective_address();
+#ifdef MESS
+	RM(EAD);
+#endif
 	WM(EAD,0);
 	CLR_NZVC; SEZ;
 }
@@ -2467,6 +2469,9 @@ INLINE void jmp_ex( void )
 INLINE void clr_ex( void )
 {
 	EXTENDED;
+#ifdef MESS
+	RM(EAD);
+#endif
 	WM(EAD,0);
 	CLR_NZVC; SEZ;
 }
@@ -2913,13 +2918,6 @@ INLINE void lda_di( void )
 	DIRBYTE(A);
 	CLR_NZV;
 	SET_NZ8(A);
-}
-
-/* $113d LDMD direct -**0- */
-INLINE void ldmd_di( void )
-{
-	DIRBYTE(MD);
-	UpdateState();
 }
 
 /* $97 STA direct -**0- */
@@ -4095,8 +4093,7 @@ INLINE void ldb_im( void )
 INLINE void ldmd_im( void )
 {
 	IMMBYTE(MD);
-/*	CLR_NZV;	*/
-/*	SET_NZ8(B); */
+	UpdateState();
 }
 
 /* $1186 LDE immediate -**0- */
@@ -5375,13 +5372,22 @@ INLINE void sts_ex( void )
 	WM16(EAD,&pS);
 }
 
+/* $11fc Emulation debug (emu_dbg) */
+INLINE void emu_dbg( void )
+{
+#ifdef MAME_DEBUG
+	extern int debug_key_pressed;
+	debug_key_pressed = 1;
+#endif
+}
+
 /* $10xx opcodes */
 INLINE void pref10( void )
 {
 	UINT8 ireg2 = ROP(PCD);
 	PC++;
 
-#if BIG_SWITCH
+#ifdef BIG_SWITCH
 	switch( ireg2 )
 	{
 		case 0x21: lbrn();			break;
@@ -5531,7 +5537,7 @@ INLINE void pref11( void )
 	UINT8 ireg2 = ROP(PCD);
 	PC++;
 
-#if BIG_SWITCH
+#ifdef BIG_SWITCH
 	switch( ireg2 )
 	{
 		case 0x30: band();			break;
@@ -5627,7 +5633,8 @@ INLINE void pref11( void )
 		case 0xf6: ldf_ex();		break;
 		case 0xf7: stf_ex();		break;
 		case 0xfb: addf_ex();		break;
-
+		case 0xfc: emu_dbg();		break;
+		
 		default:   IIError();		break;
 	}
 #else

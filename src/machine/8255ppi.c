@@ -88,7 +88,6 @@ void ppi8255_init( ppi8255_interface *intfce )
 {
 	int i;
 
-
 	num = intfce->num;
 
 	for (i = 0; i < num; i++)
@@ -110,25 +109,20 @@ void ppi8255_init( ppi8255_interface *intfce )
 
 int ppi8255_r( int which, int offset )
 {
-	ppi8255 *chip;
-
+	ppi8255 *chip = &chips[which];
 
 	/* some bounds checking */
 	if (which > num)
 	{
-		logerror("Attempting to access an unmapped 8255 chip.  PC: %04X\n", cpu_get_pc());
+		logerror("Attempting to access an unmapped 8255 chip.  PC: %04X\n", activecpu_get_pc());
 		return 0xff;
 	}
-
-	chip = &chips[which];
-
 
 	if (offset > 3)
 	{
-		logerror("Attempting to access an invalid 8255 register.  PC: %04X\n", cpu_get_pc());
+		logerror("Attempting to access an invalid 8255 register.  PC: %04X\n", activecpu_get_pc());
 		return 0xff;
 	}
-
 
 	switch(offset)
 	{
@@ -241,7 +235,7 @@ int ppi8255_r( int which, int offset )
 		return 0xff;
 	}
 
-	logerror("8255 chip %d: Port %c is being read but has no handler.  PC: %04X\n", which, 'A' + offset, cpu_get_pc());
+	logerror("8255 chip %d: Port %c is being read but has no handler.  PC: %04X\n", which, 'A' + offset, activecpu_get_pc());
 
 	return 0xff;
 }
@@ -258,7 +252,7 @@ int ppi8255_r( int which, int offset )
 	if (chip->portAwrite)								\
 		(*chip->portAwrite)(0, write_data);				\
 	else												\
-		logerror("8255 chip %d: Port A is being written to but has no handler.  PC: %08X - %02X\n", which, cpu_get_pc(), write_data);	\
+		logerror("8255 chip %d: Port A is being written to but has no handler.  PC: %08X - %02X\n", which, activecpu_get_pc(), write_data);	\
 }
 
 #define PPI8255_PORT_B_WRITE()							\
@@ -271,7 +265,7 @@ int ppi8255_r( int which, int offset )
 	if (chip->portBwrite)								\
 		(*chip->portBwrite)(0, write_data);				\
 	else												\
-		logerror("8255 chip %d: Port B is being written to but has no handler.  PC: %08X - %02X\n", which, cpu_get_pc(), write_data);	\
+		logerror("8255 chip %d: Port B is being written to but has no handler.  PC: %08X - %02X\n", which, activecpu_get_pc(), write_data);	\
 }
 
 #define PPI8255_PORT_C_WRITE()							\
@@ -284,7 +278,7 @@ int ppi8255_r( int which, int offset )
 	if (chip->portCwrite)								\
 		(*chip->portCwrite)(0, write_data);				\
 	else												\
-		logerror("8255 chip %d: Port C is being written to but has no handler.  PC: %08X - %02X\n", which, cpu_get_pc(), write_data);	\
+		logerror("8255 chip %d: Port C is being written to but has no handler.  PC: %08X - %02X\n", which, activecpu_get_pc(), write_data);	\
 }
 
 
@@ -296,7 +290,7 @@ void ppi8255_w( int which, int offset, int data )
 	/* Some bounds checking */
 	if (which > num)
 	{
-		logerror("Attempting to access an unmapped 8255 chip.  PC: %04X\n", cpu_get_pc());
+		logerror("Attempting to access an unmapped 8255 chip.  PC: %04X\n", activecpu_get_pc());
 		return;
 	}
 
@@ -305,7 +299,7 @@ void ppi8255_w( int which, int offset, int data )
 
 	if (offset > 3)
 	{
-		logerror("Attempting to access an invalid 8255 register.  PC: %04X\n", cpu_get_pc());
+		logerror("Attempting to access an invalid 8255 register.  PC: %04X\n", activecpu_get_pc());
 		return;
 	}
 
@@ -464,7 +458,7 @@ data8_t ppi8255_peek( int which, offs_t offset )
 	/* Some bounds checking */
 	if (which > num)
 	{
-		logerror("Attempting to access an unmapped 8255 chip.  PC: %04X\n", cpu_get_pc());
+		logerror("Attempting to access an unmapped 8255 chip.  PC: %04X\n", activecpu_get_pc());
 		return 0xff;
 	}
 
@@ -473,7 +467,7 @@ data8_t ppi8255_peek( int which, offs_t offset )
 
 	if (offset > 2)
 	{
-		logerror("Attempting to access an invalid 8255 port.  PC: %04X\n", cpu_get_pc());
+		logerror("Attempting to access an invalid 8255 port.  PC: %04X\n", activecpu_get_pc());
 		return 0xff;
 	}
 
@@ -487,55 +481,39 @@ data8_t ppi8255_peek( int which, offs_t offset )
 
 void ppi8255_set_portAread( int which, mem_read_handler portAread)
 {
-	ppi8255 *chip = &chips[which];
-
-	chip->portAread = portAread;
+	chips[which].portAread = portAread;
 }
 
 void ppi8255_set_portBread( int which, mem_read_handler portBread)
 {
-	ppi8255 *chip = &chips[which];
-
-	chip->portBread = portBread;
+	chips[which].portBread = portBread;
 }
 
 void ppi8255_set_portCread( int which, mem_read_handler portCread)
 {
-	ppi8255 *chip = &chips[which];
-
-	chip->portCread = portCread;
+	chips[which].portCread = portCread;
 }
 
 
 void ppi8255_set_portAwrite( int which, mem_write_handler portAwrite)
 {
-	ppi8255 *chip = &chips[which];
-
-	chip->portAwrite = portAwrite;
+	chips[which].portAwrite = portAwrite;
 }
 
 void ppi8255_set_portBwrite( int which, mem_write_handler portBwrite)
 {
-	ppi8255 *chip = &chips[which];
-
-	chip->portBwrite = portBwrite;
+	chips[which].portBwrite = portBwrite;
 }
 
 void ppi8255_set_portCwrite( int which, mem_write_handler portCwrite)
 {
-	ppi8255 *chip = &chips[which];
-
-	chip->portCwrite = portCwrite;
+	chips[which].portCwrite = portCwrite;
 }
 
 
 static void set_mode(int which, int data, int call_handlers)
 {
-	ppi8255 *chip;
-
-
-
-	chip = &chips[which];
+	ppi8255 *chip = &chips[which];
 
 	chip->groupA_mode = ( data >> 5 ) & 3;
 	chip->groupB_mode = ( data >> 2 ) & 1;
@@ -548,7 +526,7 @@ static void set_mode(int which, int data, int call_handlers)
 
 	if (((chip->groupA_mode != 0) && (chip->groupA_mode!=2)) || (chip->groupB_mode != 0))
 	{
-		logerror("8255 chip %d: Setting an unsupported mode %02X.  PC: %04X\n", which, data & 0x62, cpu_get_pc());
+		logerror("8255 chip %d: Setting an unsupported mode %02X.  PC: %04X\n", which, data & 0x62, activecpu_get_pc());
 		return;
 	}
 
@@ -621,11 +599,18 @@ READ_HANDLER( ppi8255_0_r ) { return ppi8255_r( 0, offset ); }
 READ_HANDLER( ppi8255_1_r ) { return ppi8255_r( 1, offset ); }
 READ_HANDLER( ppi8255_2_r ) { return ppi8255_r( 2, offset ); }
 READ_HANDLER( ppi8255_3_r ) { return ppi8255_r( 3, offset ); }
+READ_HANDLER( ppi8255_4_r ) { return ppi8255_r( 4, offset ); }
+READ_HANDLER( ppi8255_5_r ) { return ppi8255_r( 5, offset ); }
+READ_HANDLER( ppi8255_6_r ) { return ppi8255_r( 6, offset ); }
+READ_HANDLER( ppi8255_7_r ) { return ppi8255_r( 7, offset ); }
 WRITE_HANDLER( ppi8255_0_w ) { ppi8255_w( 0, offset, data ); }
 WRITE_HANDLER( ppi8255_1_w ) { ppi8255_w( 1, offset, data ); }
 WRITE_HANDLER( ppi8255_2_w ) { ppi8255_w( 2, offset, data ); }
 WRITE_HANDLER( ppi8255_3_w ) { ppi8255_w( 3, offset, data ); }
-
+WRITE_HANDLER( ppi8255_4_w ) { ppi8255_w( 4, offset, data ); }
+WRITE_HANDLER( ppi8255_5_w ) { ppi8255_w( 5, offset, data ); }
+WRITE_HANDLER( ppi8255_6_w ) { ppi8255_w( 6, offset, data ); }
+WRITE_HANDLER( ppi8255_7_w ) { ppi8255_w( 7, offset, data ); }
 
 
 /*************************/

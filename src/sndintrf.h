@@ -6,6 +6,7 @@ struct MachineSound
 {
 	int sound_type;
 	void *sound_interface;
+	const char *tag;
 };
 
 
@@ -64,7 +65,7 @@ struct MachineSound
  #ifndef MESS
 #include "sound/nes_apu.h"
  #else
-#include "mess/sound/nesintf.h"
+#include "sound/nesintf.h"
  #endif
 #endif
 #if (HAS_ASTROCADE)
@@ -90,6 +91,9 @@ struct MachineSound
 #endif
 #if (HAS_MSM5205)
 #include "sound/msm5205.h"
+#endif
+#if (HAS_MSM5232)
+#include "sound/msm5232.h"
 #endif
 #if (HAS_UPD7759)
 #include "sound/upd7759.h"
@@ -136,19 +140,22 @@ struct MachineSound
 #if (HAS_ES5505 || HAS_ES5506)
 #include "sound/es5506.h"
 #endif
+#if (HAS_BSMT2000)
+#include "sound/bsmt2000.h"
+#endif
 
 #ifdef MESS
 #if (HAS_BEEP)
-#include "mess/sound/beep.h"
+#include "sound/beep.h"
 #endif
 #if (HAS_SPEAKER)
-#include "mess/sound/speaker.h"
+#include "sound/speaker.h"
 #endif
 #if (HAS_TIA)
-#include "mess/sound/tiaintf.h"
+#include "sound/tiaintf.h"
 #endif
 #if (HAS_WAVE)
-#include "mess/sound/wave.h"
+#include "sound/wave.h"
 #endif
 #endif
 
@@ -252,6 +259,9 @@ enum
 #if (HAS_MSM5205)
 	SOUND_MSM5205,
 #endif
+#if (HAS_MSM5232)
+	SOUND_MSM5232,
+#endif
 #if (HAS_UPD7759)
 	SOUND_UPD7759,
 #endif
@@ -299,6 +309,9 @@ enum
 #endif
 #if (HAS_ES5506)
 	SOUND_ES5506,
+#endif
+#if (HAS_BSMT2000)
+	SOUND_BSMT2000,
 #endif
 
 #ifdef MESS
