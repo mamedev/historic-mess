@@ -282,6 +282,10 @@ static void cpu_pre_run(void)
 
 static void cpu_post_run(void)
 {
+#ifdef MESS
+	image_unload_all(FALSE);
+#endif
+
 	/* write hi scores to disk - No scores saving if cheat */
 	hs_close();
 
@@ -815,6 +819,20 @@ UINT64 cpu_gettotalcycles64(int _cpu)
 		return cpu[_cpu].totalcycles + cycles_currently_ran();
 	else
 		return cpu[_cpu].totalcycles;
+}
+
+
+
+/*************************************
+ *
+ *	Account for cycles eaten by
+ *	suspended CPUs
+ *
+ *************************************/
+
+void cpu_add_to_totalcycles(int _cpu, int cycles)
+{
+	cpu[_cpu].totalcycles += cycles;
 }
 
 

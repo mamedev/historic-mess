@@ -647,7 +647,7 @@ static void update_palette(struct mame_display *display)
 			display->game_palette_dirty[i / 32] = 0;
 			
 			// loop over all 32 bits and update dirty entries
-			for (j = 0; j < 32; j++, dirtyflags >>= 1)
+			for (j = 0; (j < 32) && (i+j < display->game_palette_entries); j++, dirtyflags >>= 1)
 				if (dirtyflags & 1)
 				{
 					// extract the RGB values
@@ -811,6 +811,11 @@ void osd_update_video_and_audio(struct mame_display *display)
 {
 	struct rectangle updatebounds = display->game_bitmap_update;
 	cycles_t cps = osd_cycles_per_second();
+
+#ifdef MESS
+	if (!throttle && (display->changed_flags & GAME_OPTIONAL_FRAMESKIP))
+		display->changed_flags &= ~GAME_VISIBLE_AREA_CHANGED;
+#endif
 
 	// if this is the first time through, initialize the previous time value
 	if (warming_up)

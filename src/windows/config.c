@@ -83,6 +83,8 @@ static int video_flipy = 0;
 static int video_flipx = 0;
 static int video_ror = 0;
 static int video_rol = 0;
+static int video_autoror = 0;
+static int video_autorol = 0;
 
 
 static char *win_basename(char *filename);
@@ -170,6 +172,8 @@ static struct rc_option opts[] = {
 	{ "norotate", NULL, rc_bool, &video_norotate, "0", 0, 0, NULL, "do not apply rotation" },
 	{ "ror", NULL, rc_bool, &video_ror, "0", 0, 0, NULL, "rotate screen clockwise" },
 	{ "rol", NULL, rc_bool, &video_rol, "0", 0, 0, NULL, "rotate screen anti-clockwise" },
+	{ "autoror", NULL, rc_bool, &video_autoror, "0", 0, 0, NULL, "automatically rotate screen clockwise for vertical games" },
+	{ "autorol", NULL, rc_bool, &video_autorol, "0", 0, 0, NULL, "automatically rotate screen anti-clockwise for vertical games" },
 	{ "flipx", NULL, rc_bool, &video_flipx, "0", 0, 0, NULL, "flip screen upside-down" },
 	{ "flipy", NULL, rc_bool, &video_flipy, "0", 0, 0, NULL, "flip screen left-right" },
 	{ "debug_resolution", "dr", rc_string, &debugres, "auto", 0, 0, video_set_debugres, "set resolution for debugger window" },
@@ -622,10 +626,6 @@ int cli_frontend_init (int argc, char **argv)
 		mame_fwrite(options.record, &inp_header, sizeof(INP_HEADER));
 	}
 
-#ifdef MESS
-	build_crc_database_filename(game_index);
-#endif
-
 	/* need a decent default for debug width/height */
 	if (options.debug_width == 0)
 		options.debug_width = 640;
@@ -687,6 +687,28 @@ int cli_frontend_init (int argc, char **argv)
 		orientation ^= ROT270;
 	}
 	
+	/* auto-rotate right (e.g. for rotating lcds), based on original orientation */
+	if (video_autoror && (drivers[game_index]->flags & ORIENTATION_SWAP_XY) )
+	{
+		/* if only one of the components is inverted, switch them */
+		if ((orientation & ROT180) == ORIENTATION_FLIP_X ||
+				(orientation & ROT180) == ORIENTATION_FLIP_Y)
+			orientation ^= ROT180;
+
+		orientation ^= ROT90;
+	}
+
+	/* auto-rotate left (e.g. for rotating lcds), based on original orientation */
+	if (video_autorol && (drivers[game_index]->flags & ORIENTATION_SWAP_XY) )
+	{
+		/* if only one of the components is inverted, switch them */
+		if ((orientation & ROT180) == ORIENTATION_FLIP_X ||
+				(orientation & ROT180) == ORIENTATION_FLIP_Y)
+			orientation ^= ROT180;
+
+		orientation ^= ROT270;
+	}
+
 	/* flip X/Y */
 	if (video_flipx)
 		orientation ^= ORIENTATION_FLIP_X;
@@ -722,6 +744,11 @@ void cli_frontend_exit(void)
 	if (options.playback) mame_fclose(options.playback);
 	if (options.record)   mame_fclose(options.record);
 	if (options.language_file) mame_fclose(options.language_file);
+
+#ifdef MESS
+	if (win_write_config)
+		write_config(NULL, Machine->gamedrv);
+#endif
 }
 
 static int config_handle_arg(char *arg)
