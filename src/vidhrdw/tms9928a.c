@@ -344,7 +344,7 @@ WRITE_HANDLER (TMS9928A_register_w) {
         if (data & 0x80) {
             /* register write */
 			reg = data & 7;
-			if (tms.FirstByte != tms.Regs[reg])
+			/*if (tms.FirstByte != tms.Regs[reg])*/ /* Removed to fix ColecoVision MESS Driver*/
 	            _TMS9928A_change_register (reg, tms.FirstByte);
         } else {
             /* set read/write address */
@@ -379,7 +379,7 @@ static void _TMS9928A_change_register (int reg, UINT8 val) {
     tms.Change = 1;
     switch (reg) {
     case 0:
-        if (val & 2) {
+        if (tms.mode != TMS_MODE) {
             /* re-calculate masks and pattern generator & colour */
             if (val & 2) {
                 tms.colour = ((tms.Regs[3] & 0x80) * 64) & (tms.vramsize - 1);
