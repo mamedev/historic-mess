@@ -7,11 +7,22 @@
 // standard windows headers
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <windowsx.h>
 
 // missing stuff from the mingw headers
 #ifndef ENUM_CURRENT_SETTINGS
 #define ENUM_CURRENT_SETTINGS       ((DWORD)-1)
 #define ENUM_REGISTRY_SETTINGS      ((DWORD)-2)
+#endif
+
+// hack for older header sets - unsafe
+#ifndef WM_XBUTTONDOWN 
+#define WM_XBUTTONDOWN 0x020B
+#endif
+
+// hack for older header sets - unsafe
+#ifndef WM_XBUTTONUP
+#define WM_XBUTTONUP 0x020C
 #endif
 
 // standard C headers
@@ -25,6 +36,7 @@
 #include "video.h"
 #include "blit.h"
 #include "mamedbg.h"
+#include "input.h"
 #include "../window.h"
 
 #ifdef MESS
@@ -100,6 +112,7 @@ int win_sync_refresh;
 float win_gfx_brightness;
 int win_blit_effect;
 float win_screen_aspect = (4.0 / 3.0);
+int win_suspend_directx;
 
 // windows
 HWND win_video_window;
@@ -725,7 +738,7 @@ static void draw_video_contents(HDC dc, struct mame_bitmap *bitmap, const struct
 
 	// if we have a blit surface, use that
 	
-	if (win_use_directx)
+	if (win_use_directx && !win_suspend_directx)
 	{
 		if (win_use_directx == USE_D3D)
 		{
@@ -1425,6 +1438,31 @@ int win_process_events(void)
 			case WM_KEYDOWN:
 			case WM_CHAR:
 #endif
+				break;
+
+			case WM_LBUTTONDOWN:
+				input_mouse_button_down(0,GET_X_LPARAM(message.lParam),GET_Y_LPARAM(message.lParam));
+				break;
+			case WM_RBUTTONDOWN:
+				input_mouse_button_down(1,GET_X_LPARAM(message.lParam),GET_Y_LPARAM(message.lParam));
+				break;
+			case WM_MBUTTONDOWN:
+				input_mouse_button_down(2,GET_X_LPARAM(message.lParam),GET_Y_LPARAM(message.lParam));
+				break;
+			case WM_XBUTTONDOWN:
+				input_mouse_button_down(3,GET_X_LPARAM(message.lParam),GET_Y_LPARAM(message.lParam));
+				break;
+			case WM_LBUTTONUP:
+				input_mouse_button_up(0);
+				break;
+			case WM_RBUTTONUP:
+				input_mouse_button_up(1);
+				break;
+			case WM_MBUTTONUP:
+				input_mouse_button_up(2);
+				break;
+			case WM_XBUTTONUP:
+				input_mouse_button_up(3);
 				break;
 
 			// process everything else
