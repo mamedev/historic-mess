@@ -119,7 +119,6 @@
 #include "harddisk.h"
 
 
-
 /***************************************************************************
 
 	Constants
@@ -414,6 +413,16 @@ static int init_machine(void)
 	/* call the game driver's init function */
 	if (gamedrv->driver_init)
 		(*gamedrv->driver_init)();
+
+#ifdef MESS
+	/* initialize the devices */
+	if (devices_initialload(gamedrv, FALSE))
+	{
+		logerror("devices_initialload failed\n");
+		goto cant_load_roms;
+	}
+#endif
+
 	return 0;
 
 cant_init_memory:
@@ -1159,13 +1168,18 @@ void force_partial_update(int scanline)
 	draw_screen - render the final screen bitmap
 	and update any artwork
 -------------------------------------------------*/
+int gbPriorityBitmapIsDirty;
 
 void draw_screen(void)
 {
 	/* finish updating the screen */
 	force_partial_update(Machine->visible_area.max_y);
+	if( gbPriorityBitmapIsDirty )
+	{
+		fillbitmap( priority_bitmap, 0x00, NULL );
+		gbPriorityBitmapIsDirty = 0;
+	}
 }
-
 
 
 /*-------------------------------------------------
@@ -1324,7 +1338,11 @@ int updatescreen(void)
 
 	/* call the end-of-frame callback */
 	if (Machine->drv->video_eof)
+	{
+		profiler_mark(PROFILER_VIDEO);
 		(*Machine->drv->video_eof)();
+		profiler_mark(PROFILER_END);
+	}
 
 	return 0;
 }

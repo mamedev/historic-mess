@@ -9,7 +9,9 @@
 #ifndef FILEIO_H
 #define FILEIO_H
 
-#include "osd_cpu.h"
+#include <stdarg.h>
+#include "osdepend.h"
+#include "hash.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -21,7 +23,6 @@ enum
 {
 	FILETYPE_RAW = 0,
 	FILETYPE_ROM,
-	FILETYPE_ROM_NOCRC,
 	FILETYPE_IMAGE,
 	FILETYPE_IMAGE_DIFF,
 	FILETYPE_SAMPLE,
@@ -54,6 +55,7 @@ typedef struct _mame_file mame_file;
 
 int mame_faccess(const char *filename, int filetype);
 mame_file *mame_fopen(const char *gamename, const char *filename, int filetype, int openforwrite);
+mame_file *mame_fopen_rom(const char *gamename, const char *filename, const char* exphash);
 UINT32 mame_fread(mame_file *file, void *buffer, UINT32 length);
 UINT32 mame_fwrite(mame_file *file, const void *buffer, UINT32 length);
 UINT32 mame_fread_swap(mame_file *file, void *buffer, UINT32 length);
@@ -71,17 +73,15 @@ UINT32 mame_fwrite_swap(mame_file *file, const void *buffer, UINT32 length);
 #endif
 int mame_fseek(mame_file *file, INT64 offset, int whence);
 void mame_fclose(mame_file *file);
-int mame_fchecksum(const char *gamename, const char *filename, unsigned int *length, unsigned int *sum);
+int mame_fchecksum(const char *gamename, const char *filename, unsigned int *length, char* hash);
 UINT64 mame_fsize(mame_file *file);
-UINT32 mame_fcrc(mame_file *file);
+const char *mame_fhash(mame_file *file);
 int mame_fgetc(mame_file *file);
 int mame_ungetc(int c, mame_file *file);
 char *mame_fgets(char *s, int n, mame_file *file);
 int mame_feof(mame_file *file);
 UINT64 mame_ftell(mame_file *file);
 
-#ifdef MESS
-#include <stdarg.h>
 int mame_fputs(mame_file *f, const char *s);
 int mame_vfprintf(mame_file *f, const char *fmt, va_list va);
 
@@ -91,7 +91,6 @@ int CLIB_DECL mame_fprintf(mame_file *f, const char *fmt, ...)
 #else
 int CLIB_DECL mame_fprintf(mame_file *f, const char *fmt, ...);
 #endif /* __GNUC__ */
-#endif /* MESS */
 
 #ifdef __cplusplus
 }
