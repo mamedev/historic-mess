@@ -20,7 +20,7 @@
 #include "window.h"
 #include "rc.h"
 
-#if WINDOW_HAS_MENU
+#ifdef MESS
 #include "menu.h"
 #endif
 
@@ -617,7 +617,8 @@ static void check_inputs(void)
 	if (input_ui_pressed(IPT_OSD_1))
 		win_toggle_full_screen();
 
-#if WINDOW_HAS_MENU
+#ifdef MESS
+	// check for toggling menu bar
 	if (input_ui_pressed(IPT_OSD_2))
 		win_toggle_menubar();
 #endif
@@ -820,7 +821,7 @@ static void render_frame(struct mame_bitmap *bitmap, const struct rectangle *bou
 	cycles_t curr;
 
 	// if we're throttling, synchronize
-	if (throttle)
+	if (throttle || game_is_paused)
 		throttle_speed();
 
 	// at the end, we need the current time

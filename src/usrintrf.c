@@ -1720,14 +1720,14 @@ static int setconfiguration(struct mame_bitmap *bitmap, int selected)
 /* it's used byt setdefkeysettings, setdefjoysettings, setkeysettings, setjoysettings */
 static int record_first_insert = 1;
 
-static char menu_subitem_buffer[400][96];
+static char menu_subitem_buffer[500][96];
 
 static int setdefcodesettings(struct mame_bitmap *bitmap,int selected)
 {
-	const char *menu_item[400];
-	const char *menu_subitem[400];
-	struct ipd *entry[400];
-	char flag[400];
+	const char *menu_item[500];
+	const char *menu_subitem[500];
+	struct ipd *entry[500];
+	char flag[500];
 	int i,sel;
 	struct ipd *in;
 	int total;
@@ -1853,10 +1853,10 @@ static int setdefcodesettings(struct mame_bitmap *bitmap,int selected)
 
 static int setcodesettings(struct mame_bitmap *bitmap,int selected)
 {
-	const char *menu_item[400];
-	const char *menu_subitem[400];
-	struct InputPort *entry[400];
-	char flag[400];
+	const char *menu_item[500];
+	const char *menu_subitem[500];
+	struct InputPort *entry[500];
+	char flag[500];
 	int i,sel;
 	struct InputPort *in;
 	int total;
@@ -3116,7 +3116,28 @@ static void setup_menu_init(void)
 #ifdef MESS
 	menu_item[menu_total] = ui_getstring (UI_configuration); menu_action[menu_total++] = UI_CONFIGURATION;
 #endif /* MESS */
-	menu_item[menu_total] = ui_getstring (UI_dipswitches); menu_action[menu_total++] = UI_SWITCH;
+
+	/* Determine if there are any dip switches */
+	{
+		struct InputPort *in;
+		int num;
+
+		in = Machine->input_ports;
+
+		num = 0;
+		while (in->type != IPT_END)
+		{
+			if ((in->type & ~IPF_MASK) == IPT_DIPSWITCH_NAME && input_port_name(in) != 0 &&
+					(in->type & IPF_UNUSED) == 0 &&	!(!options.cheat && (in->type & IPF_CHEAT)))
+				num++;
+			in++;
+		}
+
+		if (num != 0)
+		{
+			menu_item[menu_total] = ui_getstring (UI_dipswitches); menu_action[menu_total++] = UI_SWITCH;
+		}
+	}
 
 #ifdef XMAME
 	{
