@@ -125,14 +125,14 @@ static READ_HANDLER( m6509_read_00001 )
 
 static WRITE_HANDLER( m6509_write_00000 )
 {
-	m6509.pc_bank.b.h2 = data & 0xf;
-	m6509.pc.w.h = m6509.pc_bank.w.h;
+	m6509.pc_bank.b.h2=data&0xf;
+	m6509.pc.w.h=m6509.pc_bank.w.h;
 	change_pc(PCD);
 }
 
 static WRITE_HANDLER( m6509_write_00001 )
 {
-	m6509.ind_bank.b.h2 = data & 0xf;
+	m6509.ind_bank.b.h2=data&0xf;
 }
 
 static ADDRESS_MAP_START(m6509_mem, ADDRESS_SPACE_PROGRAM, 8)

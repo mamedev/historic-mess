@@ -208,7 +208,6 @@ static struct win_effect_data effect_table[] =
 
 static void compute_multipliers_internal(const RECT *rect, int visible_width, int visible_height, int *xmult, int *ymult);
 static void update_system_menu(void);
-static LRESULT CALLBACK video_window_proc(HWND wnd, UINT message, WPARAM wparam, LPARAM lparam);
 static void draw_video_contents(HDC dc, struct mame_bitmap *bitmap, const struct rectangle *bounds, void *vector_dirty_pixels, int update);
 
 static void dib_draw_window(HDC dc, struct mame_bitmap *bitmap, const struct rectangle *bounds, void *vector_dirty_pixels, int update);
@@ -436,7 +435,11 @@ int win_init_window(void)
 		// initialize the description of the window class
 		wc.lpszClassName 	= TEXT("MAME");
 		wc.hInstance 		= GetModuleHandle(NULL);
-		wc.lpfnWndProc		= video_window_proc;
+#ifdef MESS
+		wc.lpfnWndProc		= win_mess_window_proc;
+#else
+		wc.lpfnWndProc		= win_video_window_proc;
+#endif
 		wc.hCursor			= LoadCursor(NULL, IDC_ARROW);
 		wc.hIcon			= LoadIcon(NULL, IDI_APPLICATION);
 		wc.lpszMenuName		= NULL;
@@ -549,7 +552,7 @@ int win_create_window(int width, int height, int depth, int attributes, double a
 		win_use_directx = USE_D3D;
 	else if (win_use_ddraw)
 		win_use_directx = USE_DDRAW;
-	
+
 	// determine the aspect ratio: hardware stretch case
 	if (win_force_int_stretch != FORCE_INT_STRECT_FULL && (win_use_directx == USE_D3D || (win_use_directx == USE_DDRAW && win_dd_hw_stretch)))
 	{
@@ -592,7 +595,7 @@ int win_create_window(int width, int height, int depth, int attributes, double a
 			break;
 	}
 
-	// finish off by trying to initialize DirectX	
+	// finish off by trying to initialize DirectX
 	if (win_use_directx)
 	{
 		if (win_use_directx == USE_D3D)
@@ -606,16 +609,16 @@ int win_create_window(int width, int height, int depth, int attributes, double a
 	{
 		if (win_blit_effect)
 			fprintf(stderr, "Warning: non-hardware-accelerated blitting-effects engine enabled\n         use the -d3deffect option to enable hardware acceleration\n");
-		}
-		else
-		{
+	}
+	else
+	{
 		if (win_d3d_effects_in_use())
 			fprintf(stderr, "Warning: hardware-accelerated blitting-effects selected, but currently disabled\n         use the -direct3d option to enable hardware acceleration\n");
-		}
-		
+	}
+
 	// return directx initialisation status
 	if (win_use_directx)
-			return result;
+		return result;
 
 	return 0;
 }
@@ -737,7 +740,7 @@ static void draw_video_contents(HDC dc, struct mame_bitmap *bitmap, const struct
 	}
 
 	// if we have a blit surface, use that
-	
+
 	if (win_use_directx && !win_suspend_directx)
 	{
 		if (win_use_directx == USE_D3D)
@@ -759,10 +762,10 @@ static void draw_video_contents(HDC dc, struct mame_bitmap *bitmap, const struct
 
 
 //============================================================
-//	video_window_proc
+//	win_video_window_proc
 //============================================================
 
-static LRESULT CALLBACK video_window_proc(HWND wnd, UINT message, WPARAM wparam, LPARAM lparam)
+LRESULT CALLBACK win_video_window_proc(HWND wnd, UINT message, WPARAM wparam, LPARAM lparam)
 {
 	extern void win_timer_enable(int enabled);
 
@@ -796,8 +799,8 @@ static LRESULT CALLBACK video_window_proc(HWND wnd, UINT message, WPARAM wparam,
 		{
 			PAINTSTRUCT pstruct;
 			HDC hdc = BeginPaint(wnd, &pstruct);
-			if (win_video_window)
-				draw_video_contents(hdc, NULL, NULL, NULL, 1);
+ 			if (win_video_window)
+  				draw_video_contents(hdc, NULL, NULL, NULL, 1);
  			if (win_has_menu())
  				DrawMenuBar(win_video_window);
 			EndPaint(wnd, &pstruct);
@@ -864,11 +867,7 @@ static LRESULT CALLBACK video_window_proc(HWND wnd, UINT message, WPARAM wparam,
 
 		// everything else: defaults
 		default:
-#ifdef MESS
-			return win_mess_window_proc(wnd, message, wparam, lparam);
-#else
 			return DefWindowProc(wnd, message, wparam, lparam);
-#endif
 	}
 
 	return 0;
@@ -1066,28 +1065,28 @@ void win_adjust_window_for_visible(int min_x, int max_x, int min_y, int max_y)
 		}
 	}
 
-	// if we are adjusting the size in windowed mode without stretch, use our own way of changing the window size
-	if (visible_area_set && win_window_mode && win_use_directx != USE_D3D && (win_use_directx != USE_DDRAW || !win_dd_hw_stretch))
-	{
-		RECT r;
-		int xmult, ymult;
+ 	// if we are adjusting the size in windowed mode without stretch, use our own way of changing the window size
+ 	if (visible_area_set && win_window_mode && win_use_directx != USE_D3D && (win_use_directx != USE_DDRAW || !win_dd_hw_stretch))
+ 	{
+ 		RECT r;
+ 		int xmult, ymult;
 
-		GetClientRect(win_video_window, &r);
-		compute_multipliers_internal(&r, old_visible_width, old_visible_height, &xmult, &ymult);
+ 		GetClientRect(win_video_window, &r);
+ 		compute_multipliers_internal(&r, old_visible_width, old_visible_height, &xmult, &ymult);
 
-		GetWindowRect(win_video_window, &r);
-		r.right += (win_visible_width - old_visible_width) * xmult;
-		r.left += (win_visible_height - old_visible_height) * ymult;
-		set_aligned_window_pos(win_video_window, NULL, r.left, r.top,
-				r.right - r.left,
-				r.bottom - r.top,
-				SWP_NOZORDER | SWP_NOMOVE);
-	}
-	else
-	{
-		// adjust the window
-		win_adjust_window();
-	}
+ 		GetWindowRect(win_video_window, &r);
+ 		r.right += (win_visible_width - old_visible_width) * xmult;
+ 		r.left += (win_visible_height - old_visible_height) * ymult;
+ 		set_aligned_window_pos(win_video_window, NULL, r.left, r.top,
+ 				r.right - r.left,
+ 				r.bottom - r.top,
+ 				SWP_NOZORDER | SWP_NOMOVE);
+ 	}
+ 	else
+ 	{
+  		// adjust the window
+  		win_adjust_window();
+ 	}
 
 	// first time through here, we need to show the window
 	if (!visible_area_set)
@@ -1164,7 +1163,7 @@ void win_toggle_maximize(int force_maximize)
 		win_constrain_to_aspect_ratio(&constrained, WMSZ_BOTTOMRIGHT, win_default_constraints);
 	}
 
-if (force_maximize)
+	if (force_maximize)
 	{
 		current = constrained;
 		center_window = 1;
@@ -1709,7 +1708,7 @@ void win_compute_multipliers(const RECT *rect, int *xmult, int *ymult)
 }
 
 
-	
+
 //============================================================
 //	create_debug_window
 //============================================================
