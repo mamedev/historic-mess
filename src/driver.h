@@ -69,6 +69,12 @@ enum
 #if (HAS_M65C02)
 	CPU_M65C02,
 #endif
+#if (HAS_M65SC02)
+	CPU_M65SC02,
+#endif
+#if (HAS_M65CE02)
+	CPU_M65CE02,
+#endif
 #if (HAS_M6510)
 	CPU_M6510,
 #endif
@@ -333,11 +339,6 @@ struct MachineDriver
 
 
 
-struct obsolete
-{
-	int fake;
-};
-
 struct GameDriver
 {
 	const char *source_file;	/* set this to __FILE__ */
@@ -347,9 +348,8 @@ struct GameDriver
 	const char *description;
 	const char *year;
 	const char *manufacturer;
-	const char *obsolete1;
-	struct obsolete *obsolete2;
 	const struct MachineDriver *drv;
+	const struct InputPortTiny *input_ports;
 	void (*driver_init)(void);	/* optional function to be called during initialization */
 								/* This is called ONCE, unlike Machine->init_machine */
 								/* which is called every time the game is reset. */
@@ -359,21 +359,7 @@ struct GameDriver
 	const struct IODevice *dev;
 #endif
 
-	struct obsolete *obsolete3;
-	struct obsolete *obsolete4;
-
-	struct obsolete *obsolete5;
-	struct obsolete *obsolete6;
-
-	const struct InputPortTiny *input_ports;
-
-	struct obsolete *obsolete7;
-	struct obsolete *obsolete8;
-	struct obsolete *obsolete9;
 	UINT32 flags;	/* orientation and other flags; see defines below */
-
-	struct obsolete *obsolete10;
-	struct obsolete *obsolete11;
 };
 
 
@@ -393,8 +379,8 @@ struct GameDriver
 #define NOT_A_DRIVER			0x4000	/* set by the fake "root" driver_ and by "containers" */
 										/* e.g. driver_neogeo. */
 #ifdef MESS
- #define GAME_COMPUTER			0x8000	/* Driver is a computer (needs full keyboard) */
- #define GAME_ALIAS NOT_A_DRIVER        /* Driver is only an alias for an existing model */
+#define GAME_COMPUTER	0x8000			/* Driver is a computer (needs full keyboard) */
+#define GAME_ALIAS		NOT_A_DRIVER	/* Driver is only an alias for an existing model */
 #endif
 
 
@@ -408,15 +394,11 @@ struct GameDriver driver_##NAME =			\
 	FULLNAME,								\
 	#YEAR,									\
 	COMPANY,								\
-"",0,\
 	&machine_driver_##MACHINE,				\
+	input_ports_##INPUT,					\
 	init_##INIT,							\
 	rom_##NAME,								\
-0,0,0,0,\
-	input_ports_##INPUT,					\
-0,0,0,\
 	MONITOR,								\
-0,0\
 };
 
 #define GAMEX(YEAR,NAME,PARENT,MACHINE,INPUT,INIT,MONITOR,COMPANY,FULLNAME,FLAGS)	\
@@ -429,15 +411,11 @@ struct GameDriver driver_##NAME =			\
 	FULLNAME,								\
 	#YEAR,									\
 	COMPANY,								\
-"",0,\
 	&machine_driver_##MACHINE,				\
+	input_ports_##INPUT,					\
 	init_##INIT,							\
 	rom_##NAME,								\
-0,0,0,0,\
-	input_ports_##INPUT,					\
-0,0,0,\
 	(MONITOR)|(FLAGS),						\
-0,0\
 };
 
 
