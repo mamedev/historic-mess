@@ -4,10 +4,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "osdepend.h"
-#include "common.h"
 
-extern char messversion[];
+extern char messversion[]; /* MESS */
 extern FILE *errorlog;
 
 extern int framecount; /* MESS */

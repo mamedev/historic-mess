@@ -5,15 +5,11 @@
   Functions used to handle MAME's crude user interface.
 
 Changes:
-        042898 - LBO
+	042898 - LBO
 	* Changed UI menu to be more dynamic, added option to display stats
 
 MESS Changes:
-        052898 - HJB
-        . defined interface keys for easier remapping
-        . moved F3 (reset) -> F9, F4 (display charset) -> F5
-
-        . mameversion changed to messversion
+	. mameversion changed to messversion
 	. MAX_KEYS added
 
 *********************************************************************/
@@ -52,24 +48,26 @@ static int findbestcolor(unsigned char r,unsigned char g,unsigned char b)
 	mindist = 200000;
 	best = 0;
 
-	if (Machine->drv->video_attributes & VIDEO_SUPPORTS_16BIT)
-		return rgbpen (r, g, b);
-
 	for (i = 0;i < Machine->drv->total_colors;i++)
 	{
 		unsigned char r1,g1,b1;
 		int d1,d2,d3,dist;
 
 		osd_get_pen(Machine->pens[i],&r1,&g1,&b1);
-		d1 = (int)r1 - r;
-		d2 = (int)g1 - g;
-		d3 = (int)b1 - b;
-		dist = d1*d1 + d2*d2 + d3*d3;
 
-		if (dist < mindist)
+		/* don't pick black for non-black colors */
+		if (r1+g1+b1 > 0 || r+g+b == 0)
 		{
-			best = i;
-			mindist = dist;
+			d1 = (int)r1 - r;
+			d2 = (int)g1 - g;
+			d3 = (int)b1 - b;
+			dist = d1*d1 + d2*d2 + d3*d3;
+
+			if (dist < mindist)
+			{
+				best = i;
+				mindist = dist;
+			}
 		}
 	}
 
@@ -211,8 +209,7 @@ struct GfxElement *builduifont(void)
            0x00,0x04,0x04,0x0C,0x00,0x04,0x04,0x0C,0x00,0x20,0x0C,0x00,0x0E,0x00,0x0C,0x38,
            0x00,0x00,0x00,0x23,0x6E,0x00,0x00,0x00,0x00,0x00,0x04,0x08,0x00,0x11,0x22,0x00,
 	};
-
-        static struct GfxLayout fontlayout =
+	static struct GfxLayout fontlayout =
 	{
 		8,8,	/* 8*8 characters */
 		128,    /* 40 characters */
@@ -222,8 +219,7 @@ struct GfxElement *builduifont(void)
 		{ 0*8, 1*8, 2*8, 3*8, 4*8, 5*8, 6*8, 7*8, 8*8, 9*8 },
 		8*8	/* every char takes 8 consecutive bytes */
 	};
-
-        struct GfxElement *font;
+	struct GfxElement *font;
 	static unsigned short colortable[4*3];	/* ASG 980209 */
 	int trueorientation;
 
@@ -259,7 +255,7 @@ void displaytext(const struct DisplayText *dt,int erase)
 	int i,j,trueorientation;
 
 	/*             blac blue whit    blac red  yelw    blac blac red  */
-	int dt_r[] = { 0x00,0x00,0xff,-1,0x00,0xff,0xff,-1,0x00,0x00,0xff };
+	int dt_r[] = { 0x00,0x00,0xff,-1,0x00,0xff,0x7f,-1,0x00,0x00,0xff };
 	int dt_g[] = { 0x00,0x00,0xff,-1,0x00,0x00,0xff,-1,0x00,0x00,0x00 };
 	int dt_b[] = { 0x00,0xff,0xff,-1,0x00,0x00,0x00,-1,0x00,0x00,0x00 };
 
@@ -271,14 +267,11 @@ void displaytext(const struct DisplayText *dt,int erase)
 	/* look for appropriate colors and update the colortable. This is necessary */
 	/* for dynamic palette games */
 
-	/* modified to get better results with limited palettes .ac JAN2498 */
-	for( i=0; i<=10; i++ ) {
-		if( dt_r[i] >= 0 ) {
+	for( i=0; i<=10; i++ )
+	{
+		if( dt_r[i] >= 0 )
+		{
 			j = findbestcolor(dt_r[i],dt_g[i],dt_b[i]);
-			if( !j && (dt_r[i]>0 || dt_g[i]>0 || dt_b[i]>0) ) {
-				j = (dt_r[i]*30 + dt_g[i]*59 + dt_b[i]*11) / 100;
-				j = findbestcolor(j,j,j);
-			}
 			Machine->uifont->colortable[i] = j;
 		}
 	}
@@ -426,7 +419,7 @@ int showcharset(void)
 				0,TRANSPARENCY_NONE,0);
 		}
 
-		sprintf(buf,"GFXSET %d  COLOR %d  LINE %d ",bank,color,line);
+		sprintf(buf,"GFXSET %d COLOR %d LINE %d ",bank,color,line);
 		dt[0].text = buf;
 		dt[0].color = DT_COLOR_RED;
 		dt[0].x = 0;
@@ -438,7 +431,7 @@ int showcharset(void)
 
 		switch (key)
 		{
-                        case UI_KEY_MENU_RIGHT:
+			case OSD_KEY_RIGHT:
 				if (bank+1 < MAX_GFX_ELEMENTS && Machine->gfx[bank + 1])
 				{
 					bank++;
@@ -446,7 +439,7 @@ int showcharset(void)
 				}
 				break;
 
-                        case UI_KEY_MENU_LEFT:
+			case OSD_KEY_LEFT:
 				if (bank > 0)
 				{
 					bank--;
@@ -454,26 +447,26 @@ int showcharset(void)
 				}
 				break;
 
-                        case UI_KEY_MENU_PGDN:
+			case OSD_KEY_PGDN:
 				if (line < maxline-1) line++;
 				break;
 
-                        case UI_KEY_MENU_PGUP:
+			case OSD_KEY_PGUP:
 				if (line > 0) line--;
 				break;
 
-                        case UI_KEY_MENU_UP:
+			case OSD_KEY_UP:
 				if (color < Machine->drv->gfxdecodeinfo[bank].total_color_codes - 1)
 					color++;
 				break;
 
-                        case UI_KEY_MENU_DOWN:
+			case OSD_KEY_DOWN:
 				if (color > 0) color--;
 				break;
 		}
-        } while (key != UI_KEY_CHARSET && key != UI_KEY_ESCAPE);
+	} while (key != OSD_KEY_SHOW_GFX && key != OSD_KEY_ESC);
 
-	while (osd_key_pressed(key));	/* wait for key release */
+	while (osd_key_pressed(key)) ;	/* wait for key release */
 
 	/* clear the screen before returning */
 	osd_clearbitmap(Machine->scrbitmap);
@@ -549,23 +542,23 @@ static int setdipswitches(void)
 			}
 		}
 
-		displaytext(dt,1);
+		displayset(dt,total,s);
 
 		key = osd_read_keyrepeat();
 
 		switch (key)
 		{
-                        case UI_KEY_MENU_DOWN:
+			case OSD_KEY_DOWN:
 				if (s < total - 1) s++;
 				else s = 0;
 				break;
 
-                        case UI_KEY_MENU_UP:
+			case OSD_KEY_UP:
 				if (s > 0) s--;
 				else s = total - 1;
 				break;
 
-                        case UI_KEY_MENU_RIGHT:
+			case OSD_KEY_RIGHT:
 				if (s < total - 1)
 				{
 					in = entry[s] + 1;
@@ -585,7 +578,7 @@ static int setdipswitches(void)
 				}
 				break;
 
-                        case UI_KEY_MENU_LEFT:
+			case OSD_KEY_LEFT:
 				if (s < total - 1)
 				{
 					in = entry[s] + 1;
@@ -605,18 +598,18 @@ static int setdipswitches(void)
 				}
 				break;
 
-                        case UI_KEY_MENU_SELECT:
+			case OSD_KEY_ENTER:
 				if (s == total - 1) done = 1;
 				break;
 
-                        case UI_KEY_ESCAPE:
-                        case UI_KEY_MENU:
+			case OSD_KEY_ESC:
+			case OSD_KEY_CONFIGURE:
 				done = 1;
 				break;
 		}
 	} while (done == 0);
 
-	while (osd_key_pressed(key));	/* wait for key release */
+	while (osd_key_pressed(key)) ;	/* wait for key release */
 
 
 	/* clear the screen before returning */
@@ -689,17 +682,17 @@ static int setkeysettings(void)
 
 		switch (key)
 		{
-                        case UI_KEY_MENU_DOWN:
+			case OSD_KEY_DOWN:
 				if (s < total - 1) s++;
 				else s = 0;
 				break;
 
-                        case UI_KEY_MENU_UP:
+			case OSD_KEY_UP:
 				if (s > 0) s--;
 				else s = total - 1;
 				break;
 
-                        case UI_KEY_MENU_SELECT:
+			case OSD_KEY_ENTER:
 				if (s == total - 1) done = 1;
 				else
 				{
@@ -710,35 +703,21 @@ static int setkeysettings(void)
 					dt[2 * s + 1].x = Machine->uiwidth - 2*Machine->uifont->width - Machine->uifont->width*strlen(dt[2 * s + 1].text);
 					displayset(dt,total,s);
 					newkey = osd_read_key();
-					switch (newkey)
-					{
-                                                case UI_KEY_ESCAPE:
-                                                case UI_KEY_PAUSE:
-                                                case UI_KEY_RESET:
-                                                case UI_KEY_CHARSET:
-                                                case UI_KEY_MENU:
-                                                case UI_KEY_SKIPFRAMES:
-                                                case UI_KEY_THROTTLE:
-                                                case UI_KEY_VIEW_FRAMES:
-                                                case UI_KEY_SNAPSHOT:
-							entry[s]->keyboard = IP_KEY_DEFAULT;
-							break;
-
-						default:
-							entry[s]->keyboard = newkey;
-							break;
-					}
+					if (newkey > OSD_MAX_KEY)
+						entry[s]->keyboard = IP_KEY_DEFAULT;
+					else
+						entry[s]->keyboard = newkey;
 				}
 				break;
 
-                        case UI_KEY_ESCAPE:
-                        case UI_KEY_MENU:
+			case OSD_KEY_ESC:
+			case OSD_KEY_CONFIGURE:
 				done = 1;
 				break;
 		}
 	} while (done == 0);
 
-	while (osd_key_pressed(key));	/* wait for key release */
+	while (osd_key_pressed(key)) ;	/* wait for key release */
 
 	/* clear the screen before returning */
 	osd_clearbitmap(Machine->scrbitmap);
@@ -814,17 +793,17 @@ static int setjoysettings(void)
 
 		switch (key)
 		{
-                        case UI_KEY_MENU_DOWN:
+			case OSD_KEY_DOWN:
 				if (s < total - 1) s++;
 				else s = 0;
 				break;
 
-                        case UI_KEY_MENU_UP:
+			case OSD_KEY_UP:
 				if (s > 0) s--;
 				else s = total - 1;
 				break;
 
-                        case UI_KEY_MENU_SELECT:
+			case OSD_KEY_ENTER:
 				if (s == total - 1) done = 1;
 				else
 				{
@@ -838,7 +817,7 @@ static int setjoysettings(void)
 					joypressed = 0;
 					while (!joypressed)
 					{
-                                                if (osd_key_pressed(UI_KEY_ESCAPE))
+						if (osd_key_pressed(OSD_KEY_ESC))
 							joypressed = 1;
 						osd_poll_joystick();
 
@@ -874,14 +853,14 @@ static int setjoysettings(void)
 				}
 				break;
 
-                        case UI_KEY_ESCAPE:
-                        case UI_KEY_MENU:
+			case OSD_KEY_ESC:
+			case OSD_KEY_CONFIGURE:
 				done = 1;
 				break;
 		}
 	} while (done == 0);
 
-	while (osd_key_pressed(key));	/* wait for key release */
+	while (osd_key_pressed(key)) ;	/* wait for key release */
 
 	/* clear the screen before returning */
 	osd_clearbitmap(Machine->scrbitmap);
@@ -1005,17 +984,17 @@ static int settraksettings(void)
 
 		switch (pkey)
 		{
-                        case UI_KEY_MENU_DOWN:
+			case OSD_KEY_DOWN:
 				if (s < total2 - 1) s++;
 				else s = 0;
 				break;
 
-                        case UI_KEY_MENU_UP:
+			case OSD_KEY_UP:
 				if (s > 0) s--;
 				else s = total2 - 1;
 				break;
 
-                        case UI_KEY_MENU_LEFT:
+			case OSD_KEY_LEFT:
 				if ((s % ENTRIES) == 4)
 				/* keyboard/joystick delta */
 				{
@@ -1053,7 +1032,7 @@ static int settraksettings(void)
 				}
 				break;
 
-                        case UI_KEY_MENU_RIGHT:
+			case OSD_KEY_RIGHT:
 				if ((s % ENTRIES) == 4)
 				/* keyboard/joystick delta */
 				{
@@ -1091,7 +1070,7 @@ static int settraksettings(void)
 				}
 				break;
 
-                        case UI_KEY_MENU_SELECT:
+			case OSD_KEY_ENTER:
 				if (s == total2 - 1) done = 1;
 				else
 				{
@@ -1108,22 +1087,11 @@ static int settraksettings(void)
 							dt[2 * s + 1].x = Machine->uiwidth - 2*Machine->uifont->width - Machine->uifont->width*strlen(dt[2 * s + 1].text);
 							displayset(dt,total2,s);
 							newkey = osd_read_key();
-							switch (newkey)
-							{
-                                                                case UI_KEY_ESCAPE:
-									newkey = IP_KEY_DEFAULT;
-									break;
-                                                                case UI_KEY_PAUSE:
-                                                                case UI_KEY_RESET:
-                                                                case UI_KEY_CHARSET:
-                                                                case UI_KEY_MENU:
-                                                                case UI_KEY_SKIPFRAMES:
-                                                                case UI_KEY_THROTTLE:
-                                                                case UI_KEY_VIEW_FRAMES:
-                                                                case UI_KEY_SNAPSHOT:
-									newkey = IP_KEY_NONE;
-									break;
-							}
+							if (newkey == OSD_KEY_ESC)
+								newkey = IP_KEY_DEFAULT;
+							else
+							if (newkey > OSD_MAX_KEY)
+								newkey = IP_KEY_NONE;
 							if (s % ENTRIES)
 							{
 								oldkey &= ~0xff00;
@@ -1153,7 +1121,7 @@ static int settraksettings(void)
 							newjoy = -1;
 							while (!joypressed)
 							{
-                                                                if (osd_key_pressed(UI_KEY_ESCAPE))
+								if (osd_key_pressed(OSD_KEY_ESC))
 									joypressed = 1;
 								osd_poll_joystick();
 
@@ -1206,14 +1174,14 @@ static int settraksettings(void)
 				}
 				break;
 
-                        case UI_KEY_ESCAPE:
-                        case UI_KEY_MENU:
+			case OSD_KEY_ESC:
+			case OSD_KEY_CONFIGURE:
 				done = 1;
 				break;
 		}
 	} while (done == 0);
 
-	while (osd_key_pressed(pkey));	/* wait for key release */
+	while (osd_key_pressed(pkey)) ;	/* wait for key release */
 
 	/* clear the screen before returning */
 	osd_clearbitmap(Machine->scrbitmap);
@@ -1229,8 +1197,8 @@ void mame_stats (void)
 	char temp[10];
 	char buf[1024];
 
-	strcpy (buf, "MESS ver: "); // MESS
-	strcat (buf, messversion); // MESS
+	strcpy (buf, "MESS ver: "); /* MESS */
+	strcat (buf, messversion);
 	strcat (buf, "\n\n");
 
 	strcat (buf, "Tickets dispensed: ");
@@ -1276,6 +1244,38 @@ void mame_stats (void)
 	while (osd_key_pressed(key));	/* wait for key release */
 }
 
+int showcopyright(void)
+{
+#ifndef macintosh /* LBO - This text is displayed in a dialog box. */
+	int key;
+	struct DisplayText dt[2];
+
+
+	dt[0].text = "PLEASE DO NOT DISTRIBUTE THE SOURCE CODE AND/OR THE EXECUTABLE "
+				"APPLICATION WITH ANY IMAGES OF COMPUTER/CONSOLE MEDIA.\n"
+				"DOING AS SUCH WILL HARM ANY FURTHER DEVELOPMENT OF MESS AND COULD "
+				"RESULT IN LEGAL ACTION BEING TAKEN BY THE LAWFUL COPYRIGHT HOLDERS "
+				"OF THE ORIGINAL MEDIA.\n\n"
+				"IF YOU DO NOT AGREE WITH THESE CONDITIONS THEN PLEASE PRESS ESC NOW.";
+
+	dt[0].color = DT_COLOR_RED;
+	dt[0].x = 0;
+	dt[0].y = 0;
+	dt[1].text = 0;
+	displaytext(dt,1);
+
+	key = osd_read_key();
+	while (osd_key_pressed(key)) ;	/* wait for key release */
+	if (key == OSD_KEY_ESC)
+		return 1;
+#endif
+
+	osd_clearbitmap(Machine->scrbitmap);
+	osd_update_display();
+
+	return 0;
+}
+
 int showcredits(void)
 {
 	int key;
@@ -1293,7 +1293,10 @@ int showcredits(void)
 	displaytext(dt,1);
 
 	key = osd_read_key();
-	while (osd_key_pressed(key));	/* wait for key release */
+	while (osd_key_pressed(key)) ;	/* wait for key release */
+
+	osd_clearbitmap(Machine->scrbitmap);
+	osd_update_display();
 
 	return 0;
 }
@@ -1308,13 +1311,17 @@ int showgameinfo(void)
 	{
 		"",
 		"Z80",
+		"I8085",
 		"6502",
 		"8086",
 		"8035",
 		"6803",
 		"6805",
 		"6809",
-		"68000"
+		"68000",
+		"T-11",
+		"S2650",
+		"PDP1"
 	};
 	static char *soundnames[] =
 	{
@@ -1335,18 +1342,84 @@ int showgameinfo(void)
 		"VLM5030",
 		"ADPCM samples",
 		"OKIM6295 ADPCM",
-		"MSM5205 ADPCM"
+		"MSM5205 ADPCM",
+		"HC-55516 CVSD",
+		"YM2612"
 	};
+
+
+	if (Machine->gamedrv->flags)
+	{
+
+		strcpy(buf, "There are known problems with this game:\n\n");
+		
+		if (Machine->gamedrv->flags & GAME_IMPERFECT_COLORS)
+		{
+			strcat(buf, "The colors aren't 100% accurate.\n");
+		}
+
+		if (Machine->gamedrv->flags & GAME_WRONG_COLORS)
+		{
+			strcat(buf, "The colors are completely wrong.\n");
+		}
+
+		if (Machine->gamedrv->flags & GAME_NOT_WORKING)
+		{
+			const struct GameDriver *main;
+			int foundworking;
+
+			strcpy(buf,"THIS GAME DOESN'T WORK PROPERLY");
+			if (Machine->gamedrv->clone_of) main = Machine->gamedrv->clone_of;
+			else main = Machine->gamedrv;
+
+			foundworking = 0;
+			i = 0;
+			while (drivers[i])
+			{
+				if (drivers[i] == main || drivers[i]->clone_of == main)
+				{
+					if ((drivers[i]->flags & GAME_NOT_WORKING) == 0)
+					{
+						if (foundworking == 0)
+							strcat(buf,"\n\n\nThere are clones of this game which work. They are:\n\n");
+						foundworking = 1;
+
+						sprintf(&buf[strlen(buf)],"%s\n",drivers[i]->name);
+					}
+				}
+				i++;
+			}
+		}
+
+		strcat(buf,"\n\n\nType OK to continue");
+
+		dt[0].text = buf;
+		dt[0].color = DT_COLOR_RED;
+		dt[0].x = 0;
+		dt[0].y = 0;
+		dt[1].text = 0;
+		displaytext(dt,1);
+
+		while (!osd_key_pressed(OSD_KEY_O)) ;
+		while (!osd_key_pressed(OSD_KEY_K)) ;
+		while (osd_key_pressed(OSD_KEY_K)) ;
+	}
 
 
 	sprintf(buf,"%s\n\nCPU:\n",Machine->gamedrv->description);
 	i = 0;
 	while (i < MAX_CPU && Machine->drv->cpu[i].cpu_type)
 	{
-		sprintf(&buf[strlen(buf)],"%s %d.%06d MHz\n",
+		sprintf(&buf[strlen(buf)],"%s %d.%06d MHz",
 				cpunames[Machine->drv->cpu[i].cpu_type & ~CPU_FLAGS_MASK],
 				Machine->drv->cpu[i].cpu_clock / 1000000,
 				Machine->drv->cpu[i].cpu_clock % 1000000);
+
+		if (Machine->drv->cpu[i].cpu_type & CPU_AUDIO_CPU)
+			strcat(buf," (sound)");
+
+		strcat(buf,"\n");
+
 		i++;
 	}
 
@@ -1387,10 +1460,12 @@ int showgameinfo(void)
 					Machine->drv->visible_area.max_x - Machine->drv->visible_area.min_x + 1,
 					Machine->drv->visible_area.max_y - Machine->drv->visible_area.min_y + 1,
 					Machine->drv->frames_per_second);
+		sprintf(&buf[strlen(buf)],"%d colors ",Machine->drv->total_colors);
 		if (Machine->drv->video_attributes & VIDEO_SUPPORTS_16BIT)
-			sprintf(&buf[strlen(buf)],">256 colors (16-bit required)\n");
-		else
-			sprintf(&buf[strlen(buf)],"%d colors\n",Machine->drv->total_colors);
+			strcat(buf,"(16-bit required)\n");
+		else if (Machine->drv->video_attributes & VIDEO_MODIFIES_PALETTE)
+			strcat(buf,"(dynamic)\n");
+		else strcat(buf,"(static)\n");
 	}
 
 	dt[0].text = buf;
@@ -1479,17 +1554,17 @@ int setup_menu (void)
 
 		switch (key)
 		{
-                        case UI_KEY_MENU_DOWN:
+			case OSD_KEY_DOWN:
 				if (s < total - 1) s++;
 				else s = 0;
 				break;
 
-                        case UI_KEY_MENU_UP:
+			case OSD_KEY_UP:
 				if (s > 0) s--;
 				else s = total - 1;
 				break;
 
-                        case UI_KEY_MENU_SELECT:
+			case OSD_KEY_ENTER:
 				switch (ui_menu[s])
 				{
 					case UI_SWITCH:
@@ -1530,14 +1605,14 @@ int setup_menu (void)
 				}
 				break;
 
-                        case UI_KEY_ESCAPE:
-                        case UI_KEY_MENU:
+			case OSD_KEY_ESC:
+			case OSD_KEY_CONFIGURE:
 				done = 1;
 				break;
 		}
 	} while (done == 0);
 
-	while (osd_key_pressed(key));	/* wait for key release */
+	while (osd_key_pressed(key)) ;	/* wait for key release */
 
 	/* clear the screen before returning */
 	osd_clearbitmap(Machine->scrbitmap);

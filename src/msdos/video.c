@@ -1,5 +1,5 @@
-/* Modified for MESS!!! */
-/* (Built from the 5/13/98 version of video.c) */
+/* MODIFIED FOR MESS!!! */
+/* (built from the 8/09/98 version of fileio.c) */
 
 #include "driver.h"
 #include <math.h>
@@ -11,6 +11,7 @@
 #include "TwkUser.c"
 #include <allegro.h>
 #include "vgafreq.h"
+#include "vidhrdw/vector.h"
 
 DECLARE_GFX_DRIVER_LIST(
 	GFX_DRIVER_VGA
@@ -26,7 +27,9 @@ DECLARE_COLOR_DEPTH_LIST(
 #define MAX_GFX_WIDTH 1600
 
 
+void scale_vectorgames(int gfx_width,int gfx_height,int *width,int *height);
 void joy_calibration(void);
+
 
 static struct osd_bitmap *scrbitmap;
 static unsigned char current_palette[256][3];
@@ -38,13 +41,13 @@ static int dirtypalette;
 int vesa;
 int ntsc;
 int vgafreq;
+int always_synced;
 int video_sync;
 int color_depth;
 int skiplines;
 int skipcolumns;
 int scanlines;
 int use_double;
-int use_synced;
 float gamma_correction;
 char *pcxdir;
 char *resolution;
@@ -53,6 +56,7 @@ int gfx_mode;
 int gfx_width;
 int gfx_height;
 
+static int auto_resolution;
 static int viswidth;
 static int visheight;
 static int skiplinesmax;
@@ -60,6 +64,7 @@ static int skipcolumnsmax;
 static int skiplinesmin;
 static int skipcolumnsmin;
 
+static int vector_game;
 static int use_dirty;
 
 static Register *reg = 0;       /* for VGA modes */
@@ -73,15 +78,30 @@ static int gfx_display_columns;
 static int doubling = 0;
 int throttle = 1;       /* toggled by F10 */
 
-struct { int x, y; Register *reg; int reglen; int syncvgafreq; int scanlines; }
-vga_tweaked[] = {
+static int gone_to_gfx_mode;
+static int frames_displayed;
+static uclock_t start_time,end_time;	/* to calculate fps average on exit */
+#define FRAMES_TO_SKIP 20	/* skip the first few frames from the FPS calculation */
+							/* to avoid counting the copyright and info screens */
+
+
+struct vga_tweak { int x, y; Register *reg; int reglen; int syncvgafreq; int scanlines; };
+struct vga_tweak vga_orig_tweaked[] = {
+	{ 288, 224, orig_scr288x224scanlines, sizeof(scr288x224scanlines)/sizeof(Register), 0, 1},
+	{ 256, 256, orig_scr256x256scanlines, sizeof(scr256x256scanlines)/sizeof(Register), 0, 1},
+	{ 224, 288, orig_scr224x288scanlines, sizeof(scr224x288scanlines)/sizeof(Register), 0, 1},
+	{ 288, 224, orig_scr288x224, sizeof(scr288x224)/sizeof(Register),  0, 0 },
+	{ 256, 256, orig_scr256x256, sizeof(scr256x256)/sizeof(Register),  0, 0 },
+	{ 224, 288, orig_scr224x288, sizeof(scr224x288)/sizeof(Register),  0, 0 },
+	{ 0, 0 }
+};
+struct vga_tweak vga_tweaked[] = {
 	{ 288, 224, scr288x224scanlines, sizeof(scr288x224scanlines)/sizeof(Register), 0, 1},
 	{ 256, 256, scr256x256scanlines, sizeof(scr256x256scanlines)/sizeof(Register), 1, 1},
 	{ 224, 288, scr224x288scanlines, sizeof(scr224x288scanlines)/sizeof(Register), 2, 1},
 	{ 320, 204, scr320x204, sizeof(scr320x204)/sizeof(Register), -1, 0 },
 	{ 288, 224, scr288x224, sizeof(scr288x224)/sizeof(Register),  0, 0 },
 	{ 256, 256, scr256x256, sizeof(scr256x256)/sizeof(Register),  1, 0 },
-	{ 240, 272, scr240x272, sizeof(scr240x272)/sizeof(Register), -1, 0 },
 	{ 224, 288, scr224x288, sizeof(scr224x288)/sizeof(Register),  1, 0 },
 	{ 200, 320, scr200x320, sizeof(scr200x320)/sizeof(Register), -1, 0 },
 	{ 0, 0 }
@@ -167,11 +187,9 @@ struct osd_bitmap *osd_new_bitmap(int width,int height,int depth)       /* ASG 9
 void osd_clearbitmap(struct osd_bitmap *bitmap)
 {
 	int i;
-        extern int scrbitmap_dirty;
 
-        scrbitmap_dirty = 1;
 
-        for (i = 0;i < bitmap->height;i++)
+	for (i = 0;i < bitmap->height;i++)
 	{
 		if (bitmap->depth == 16)
 			memset(bitmap->line[i],0,2*bitmap->width);
@@ -187,7 +205,6 @@ void osd_clearbitmap(struct osd_bitmap *bitmap)
 		/* signal the layer system that the screen needs a complete refresh */
 		layer_mark_full_screen_dirty();
 	}
-
 }
 
 
@@ -213,19 +230,19 @@ char *dirty_new=line2;
 
 
 /* ASG 971011 */
-void osd_mark_dirty(int x1, int y1, int x2, int y2, int ui)
+void osd_mark_dirty(int x1, int _y1, int x2, int y2, int ui)
 {
 	if (use_dirty == 2)	/* GfxLayer dirty handling */
 	{
-		layer_mark_rectangle_dirty_norotate(Machine->dirtylayer,x1,x2,y1,y2);
+		layer_mark_rectangle_dirty_norotate(Machine->dirtylayer,x1,x2,_y1,y2);
 	}
 	else if (use_dirty)
 	{
-		if (y1 >= MAXDIRTY || y2 < 0) return;
-		if (y1 < 0) y1 = 0;
+		if (_y1 >= MAXDIRTY || y2 < 0) return;
+		if (_y1 < 0) _y1 = 0;
 		if (y2 >= MAXDIRTY) y2 = MAXDIRTY-1;
 
-		memset(&dirty_new[y1], 1, y2-y1+1);
+		memset(&dirty_new[_y1], 1, y2-_y1+1);
 	}
 }
 
@@ -256,6 +273,15 @@ static void select_display_mode(void)
 	int width,height;
 
 
+	auto_resolution = 0;
+	doubling = use_double;
+
+	if (vector_game)
+	{
+		width = Machine->drv->screen_width;
+		height = Machine->drv->screen_height;
+	}
+	else
 	{
 		width = Machine->drv->visible_area.max_x - Machine->drv->visible_area.min_x + 1;
 		height = Machine->drv->visible_area.max_y - Machine->drv->visible_area.min_y + 1;
@@ -284,7 +310,7 @@ static void select_display_mode(void)
 	/* tweaked VGA modes */
 	if (gfx_width && gfx_height)
 	{
-		if (gfx_width >=320 && gfx_height >=240)
+		if (gfx_width >= 320 && gfx_height >= 240)
 			gfx_mode = GFX_VESA2L;
 		else
 			gfx_mode = GFX_VGA;
@@ -292,7 +318,7 @@ static void select_display_mode(void)
 	/* if no gfx mode specified, choose the best one */
 	else if (!gfx_mode)
 	{
-		if (width >=320 && height >=240)
+		if (width >= 320 && height >= 240)
 			gfx_mode = GFX_VESA2L;
 		else
 			gfx_mode = GFX_VGA;
@@ -331,11 +357,34 @@ static void select_display_mode(void)
 
 	if ((gfx_mode!=GFX_VGA) && !gfx_width && !gfx_height)
 	{
+		auto_resolution = 1;
+
+		/* vector games use 640x480 as default */
+		if (vector_game)
 		{
-			if (use_double != 0)
+			gfx_width = 640;
+			gfx_height = 480;
+			/* but if the graphics won't fit... */
+			if (width > 640 || height > 480)
+			{
+				gfx_width = 800;
+				gfx_height = 600;
+				if (width > 800 || height > 600)
+				{
+					gfx_width = 1024;
+					gfx_height = 768;
+                }
+			}
+		}
+		else
+		{
+			/* turn off pixel doubling if we don't want scanlines */
+			if (scanlines == 0) doubling = 0;
+
+			if (doubling != 0)
 			{
 				/* see if pixel doubling can be applied at 640x480 */
-				if (height <=240 && width <= 320)
+				if (height <= 240 && width <= 320)
 				{
 					gfx_width = 640;
 					gfx_height = 480;
@@ -343,23 +392,34 @@ static void select_display_mode(void)
 				/* see if pixel doubling can be applied at 800x600 */
 				else if (height <= 300 && width <= 400)
 				{
-					gfx_width=800;
-					gfx_height=600;
+					gfx_width = 800;
+					gfx_height = 600;
 				}
-				/* see if pixel doubling can be applied at 1024x768 */
-				else if (height <= 384 && width <= 512)
-				{
-					gfx_width=1024;
-					gfx_height=768;
-				}
+				/* we don't want to use pixel doubling at 1024x768 */
+
 				/* no pixel doubled modes fit, revert to not doubled */
 				else
-					use_double = 0;
+					doubling = 0;
 			}
 
-			if (use_double == 0)
+			if (doubling == 0)
 			{
-				if (height <= 480 && width <= 640)
+				if (height <= 240 && width <= 320)
+				{
+					gfx_width = 320;
+					gfx_height = 240;
+				}
+				else if (height <= 300 && width <= 400)
+				{
+					gfx_width = 400;
+					gfx_height = 300;
+				}
+				else if (height <= 384 && width <= 512)
+				{
+					gfx_width = 512;
+					gfx_height = 384;
+				}
+				else if (height <= 480 && width <= 640)
 				{
 					gfx_width = 640;
 					gfx_height = 480;
@@ -401,14 +461,27 @@ static void adjust_display (int xmin, int ymin, int xmax, int ymax)
 		h = Machine->drv->screen_height;
 	}
 
+	if (!vector_game)
+	{
+		if (Machine->orientation & ORIENTATION_FLIP_X)
+		{
+			temp = w - xmin - 1;
+			xmin = w - xmax - 1;
+			xmax = temp;
+		}
+		if (Machine->orientation & ORIENTATION_FLIP_Y)
+		{
+			temp = h - ymin - 1;
+			ymin = h - ymax - 1;
+			ymax = temp;
+		}
+	}
+
 	viswidth  = xmax - xmin + 1;
 	visheight = ymax - ymin + 1;
 
-	if (gfx_mode == GFX_VGA || use_double == 0)
-		doubling = 0;
-	else if (use_double == 1)
-		doubling = 1;
-	else if (viswidth > gfx_width/2 || visheight > gfx_height/2)
+	if (doubling == 0 || gfx_mode == GFX_VGA ||
+			(doubling != 1 && (viswidth > gfx_width/2 || visheight > gfx_height/2)))
 		doubling = 0;
 	else
 		doubling = 1;
@@ -493,13 +566,20 @@ int game_attributes;
 /* Return a osd_bitmap pointer or 0 in case of error. */
 struct osd_bitmap *osd_create_display(int width,int height,int attributes)
 {
-	int i;
-
 	if (errorlog)
 		fprintf (errorlog, "width %d, height %d\n", width,height);
 
+	gone_to_gfx_mode = 0;
+
+	/* Look if this is a vector game */
+	if (Machine->drv->video_attributes & VIDEO_TYPE_VECTOR)
+		vector_game = 1;
+	else
+		vector_game = 0;
+
+
 	/* Is the game using a dirty system? */
-	if ((Machine->drv->video_attributes & VIDEO_SUPPORTS_DIRTY))
+	if ((Machine->drv->video_attributes & VIDEO_SUPPORTS_DIRTY) || vector_game)
 		use_dirty = 1;
 	else
 		use_dirty = 0;
@@ -509,10 +589,13 @@ struct osd_bitmap *osd_create_display(int width,int height,int attributes)
 
 	select_display_mode();
 
-	/* center display based on visible area */
+	if (vector_game)
 	{
-		struct rectangle vis = Machine->drv->visible_area;
-		adjust_display (vis.min_x, vis.min_y, vis.max_x, vis.max_y);
+		/* for vector games, use_double == 0 means miniaturized. */
+		if (use_double == 0)
+			scale_vectorgames(gfx_width/2,gfx_height/2,&width, &height);
+		else
+			scale_vectorgames(gfx_width,gfx_height,&width, &height);
 	}
 
 	game_width = width;
@@ -529,6 +612,19 @@ struct osd_bitmap *osd_create_display(int width,int height,int attributes)
 	if (!osd_set_display(width, height, attributes))
 		return 0;
 
+	if (vector_game)
+	{
+		/* vector games are always non-doubling */
+		doubling = 0;
+		/* center display */
+		adjust_display(0, 0, width-1, height-1);
+	}
+	else /* center display based on visible area */
+	{
+		struct rectangle vis = Machine->drv->visible_area;
+		adjust_display (vis.min_x, vis.min_y, vis.max_x, vis.max_y);
+	}
+
 	return scrbitmap;
 }
 
@@ -537,17 +633,30 @@ int osd_set_display(int width,int height, int attributes)
 {
 	int     i;
 
+
 	if (!gfx_height || !gfx_width)
 	{
 		printf("Please specify height AND width (e.g. -640x480)\n");
 		return 0;
 	}
 
+	if (Machine->orientation & ORIENTATION_SWAP_XY)
+	{
+		int temp;
+
+		temp = width;
+		width = height;
+		height = temp;
+	}
 	/* Mark the dirty buffers as dirty */
 
 	if (use_dirty)
 	{
-		init_dirty(1);
+		if (vector_game)
+			/* vector games only use one dirty buffer */
+			init_dirty (0);
+		else
+			init_dirty(1);
 		swap_dirty();
 		init_dirty(1);
 	}
@@ -559,7 +668,7 @@ int osd_set_display(int width,int height, int attributes)
 
 	if (gfx_mode == GFX_VGA)
 	{
-		int i, found;
+		int found;
 
 		/* setup tweaked modes */
 		videofreq = vgafreq;
@@ -573,8 +682,37 @@ int osd_set_display(int width,int height, int attributes)
 			found = 1;
 		}
 
+		/* handle special noscanlines 256x256 57Hz tweaked mode */
+		if (gfx_width == 256 && gfx_height == 256 && scanlines == 0 &&
+				video_sync && Machine->drv->frames_per_second == 57)
+		{
+			reg = scr256x256_57;
+			reglen = sizeof(scr256x256_57)/sizeof(Register);
+			videofreq = 0;
+			found = 1;
+		}
+
 		/* find the matching tweaked mode */
 		/* use noscanline modes if scanline modes not possible */
+		if (video_sync == 0 && always_synced == 0)
+		{
+			/* if vsync not requested, first look for more compatible modes */
+			for (i=0; ((vga_orig_tweaked[i].x != 0) && !found); i++)
+			{
+				int scan;
+				scan = vga_orig_tweaked[i].scanlines;
+
+				if (gfx_width  == vga_orig_tweaked[i].x &&
+					gfx_height == vga_orig_tweaked[i].y &&
+					(scanlines == scan || scan == 0))
+				{
+					reg = vga_orig_tweaked[i].reg;
+					reglen = vga_orig_tweaked[i].reglen;
+					videofreq = 0;	/* always use the most compatible vgafreq 0 */
+					found = 1;
+				}
+			}
+		}
 		for (i=0; ((vga_tweaked[i].x != 0) && !found); i++)
 		{
 			int scan;
@@ -591,6 +729,7 @@ int osd_set_display(int width,int height, int attributes)
 				found = 1;
 			}
 		}
+
 
 		/* can't find a VGA mode, use VESA */
 		if (found == 0)
@@ -609,6 +748,7 @@ int osd_set_display(int width,int height, int attributes)
 		int mode, bits;
 
 
+retry:
 		/* Try the specified vesamode and all lower ones BW 131097 */
 		for (mode=gfx_mode; mode>=GFX_VESA1; mode--)
 		{
@@ -639,6 +779,26 @@ int osd_set_display(int width,int height, int attributes)
 
 		if (mode < GFX_VESA1)
 		{
+			if (auto_resolution && gfx_width <= 512)
+			{
+				/* low res VESA mode not available, try an high res one */
+				if (use_double == 0)
+				{
+					/* if pixel doubling disabledm use 640x480 */
+					gfx_width = 640;
+					gfx_height = 480;
+					goto retry;
+				}
+				else
+				{
+					/* if pixel doubling enabled, turn it one and use the double resolution */
+					doubling = 1;
+					gfx_width *= 2;
+					gfx_height *= 2;
+					goto retry;
+				}
+			}
+
 			printf ("\nNo %d-bit %dx%d VESA mode available.\n",
 					scrbitmap->depth,gfx_width,gfx_height);
 			printf ("\nPossible causes:\n"
@@ -659,7 +819,6 @@ int osd_set_display(int width,int height, int attributes)
 		}
 
 		gfx_mode = mode;
-
 	}
 	else
 	{
@@ -675,10 +834,13 @@ int osd_set_display(int width,int height, int attributes)
 	}
 
 
+	gone_to_gfx_mode = 1;
+
+
 	if (video_sync)
 	{
 		uclock_t a,b;
-		int i,rate;
+		float rate;
 
 
 		/* wait some time to let everything stabilize */
@@ -689,21 +851,27 @@ int osd_set_display(int width,int height, int attributes)
 		}
 		vsync();
 		b = uclock();
-if (errorlog) fprintf(errorlog,"video frame rate = %3.2fHz\n",((float)UCLOCKS_PER_SEC)/(b-a));
+		rate = ((float)UCLOCKS_PER_SEC)/(b-a);
 
-		rate = UCLOCKS_PER_SEC/(b-a);
+if (errorlog) fprintf(errorlog,"target frame rate = %dfps, video frame rate = %3.2fHz\n",Machine->drv->frames_per_second,rate);
 
-		/* don't allow more than 5% difference between target and actual frame rate */
-		while (rate > Machine->drv->frames_per_second * 105 / 100)
+		/* don't allow more than 8% difference between target and actual frame rate */
+		while (rate > Machine->drv->frames_per_second * 108 / 100)
 			rate /= 2;
 
-		if (rate < Machine->drv->frames_per_second * 95 / 100)
+		if (rate < Machine->drv->frames_per_second * 92 / 100)
 		{
 			osd_close_display();
-			printf("-vsync option cannot be used with this display mode:\n"
+if (errorlog) fprintf(errorlog,"-vsync option cannot be used with this display mode:\n"
 					"video refresh frequency = %dHz, target frame rate = %dfps\n",
 					(int)(UCLOCKS_PER_SEC/(b-a)),Machine->drv->frames_per_second);
 			return 0;
+		}
+
+		if (Machine->sample_rate)
+		{
+			Machine->sample_rate = Machine->sample_rate * Machine->drv->frames_per_second / rate;
+if (errorlog) fprintf(errorlog,"sample rate adjusted to match video freq: %d\n",Machine->sample_rate);
 		}
 	}
 	return 1;
@@ -714,7 +882,13 @@ if (errorlog) fprintf(errorlog,"video frame rate = %3.2fHz\n",((float)UCLOCKS_PE
 /* shut up the display */
 void osd_close_display(void)
 {
-	set_gfx_mode(GFX_TEXT,80,25,0,0);
+	if (gone_to_gfx_mode != 0)
+	{
+		set_gfx_mode(GFX_TEXT,80,25,0,0);
+
+		if (frames_displayed > FRAMES_TO_SKIP)
+			printf("Average FPS: %f\n",(double)UCLOCKS_PER_SEC/(end_time-start_time)*(frames_displayed-FRAMES_TO_SKIP));
+	}
 
 	if (scrbitmap)
 	{
@@ -723,7 +897,11 @@ void osd_close_display(void)
 	}
 }
 
-
+/* skip a frame */
+int osd_skip_this_frame (int skipme)
+{
+	return skipme;
+}
 
 /* palette is an array of 'totalcolors' R,G,B triplets. The function returns */
 /* in *pens the pen values corresponding to the requested colors. */
@@ -840,25 +1018,24 @@ void my_textout (char *buf)
 inline void double_pixels(unsigned long *lb, short seg,
 			  unsigned long address, int width4)
 {
-	__asm__ __volatile__ ("
-	pushw %%es              \n
-	movw %%dx, %%es         \n
-	cld                     \n
-	.align 4                \n
-	0:                      \n
-	lodsl                   \n
-	movl %%eax, %%ebx       \n
-	bswap %%eax             \n
-	xchgw %%ax,%%bx         \n
-	roll $8, %%eax          \n
-	stosl                   \n
-	movl %%ebx, %%eax       \n
-	rorl $8, %%eax          \n
-	stosl                   \n
-	loop 0b                 \n
-	popw %%ax               \n
-	movw %%ax, %%es         \n
-	"
+	__asm__ __volatile__ (
+	"pushw %%es              \n"
+	"movw %%dx, %%es         \n"
+	"cld                     \n"
+	".align 4                \n"
+	"0:                      \n"
+	"lodsl                   \n"
+	"movl %%eax, %%ebx       \n"
+	"bswap %%eax             \n"
+	"xchgw %%ax,%%bx         \n"
+	"roll $8, %%eax          \n"
+	"stosl                   \n"
+	"movl %%ebx, %%eax       \n"
+	"rorl $8, %%eax          \n"
+	"stosl                   \n"
+	"loop 0b                 \n"
+	"popw %%ax               \n"
+	"movw %%ax, %%es         \n"
 	::
 	"d" (seg),
 	"c" (width4),
@@ -870,23 +1047,22 @@ inline void double_pixels(unsigned long *lb, short seg,
 inline void double_pixels16(unsigned long *lb, short seg,
 			  unsigned long address, int width4)
 {
-	__asm__ __volatile__ ("
-	pushw %%es              \n
-	movw %%dx, %%es         \n
-	cld                     \n
-	.align 4                \n
-	0:                      \n
-	lodsl                   \n
-	movl %%eax, %%ebx       \n
-	roll $16, %%eax         \n
-	xchgw %%ax,%%bx         \n
-	stosl                   \n
-	movl %%ebx, %%eax       \n
-	stosl                   \n
-	loop 0b                 \n
-	popw %%ax               \n
-	movw %%ax, %%es         \n
-	"
+	__asm__ __volatile__ (
+	"pushw %%es              \n"
+	"movw %%dx, %%es         \n"
+	"cld                     \n"
+	".align 4                \n"
+	"0:                      \n"
+	"lodsl                   \n"
+	"movl %%eax, %%ebx       \n"
+	"roll $16, %%eax         \n"
+	"xchgw %%ax,%%bx         \n"
+	"stosl                   \n"
+	"movl %%ebx, %%eax       \n"
+	"stosl                   \n"
+	"loop 0b                 \n"
+	"popw %%ax               \n"
+	"movw %%ax, %%es         \n"
 	::
 	"d" (seg),
 	"c" (width4),
@@ -1211,13 +1387,16 @@ void osd_update_display(void)
 	int i;
 	static float gamma_update = 0.00;
 	static int showgammatemp;
-	static int showfps,showfpstemp,f8pressed,f10pressed,f11pressed;
+	static int showfps,showfpstemp;
+	static int frameskip_pressed,throttle_pressed,show_fps_pressed;
 	uclock_t curr;
 	#define MEMORY 10
 	static uclock_t prev[MEMORY];
 	static int memory,speed;
 	extern int frameskip;
+	static int vups,vfcount;
 	int need_to_clear_bitmap = 0;
+
 
 
 	/* Check for PGUP, PGDN and pan screen */
@@ -1225,27 +1404,38 @@ void osd_update_display(void)
 		pan_display();
 
 
-	if (osd_key_pressed(OSD_KEY_F8))
+	if (osd_key_pressed(OSD_KEY_FRAMESKIP))
 	{
-		if (f8pressed == 0)
+		if (frameskip_pressed == 0)
 		{
 			frameskip = (frameskip + 1) % 4;
 			showfpstemp = 50;
+
+			/* reset the frame counter every time the frameskip key is pressed, so */
+			/* we'll measure the average FPS on a consistent status. */
+			frames_displayed = 0;
 		}
-		f8pressed = 1;
+		frameskip_pressed = 1;
 	}
-	else f8pressed = 0;
+	else frameskip_pressed = 0;
 
-	if (osd_key_pressed(OSD_KEY_F10))
+	if (osd_key_pressed(OSD_KEY_THROTTLE))
 	{
-		if (f10pressed == 0) throttle ^= 1;
-		f10pressed = 1;
+		if (throttle_pressed == 0)
+		{
+			throttle ^= 1;
+
+			/* reset the frame counter every time the throttle key is pressed, so */
+			/* we'll measure the average FPS on a consistent status. */
+			frames_displayed = 0;
+		}
+		throttle_pressed = 1;
 	}
-	else f10pressed = 0;
+	else throttle_pressed = 0;
 
-	if (osd_key_pressed(OSD_KEY_F11))
+	if (osd_key_pressed(OSD_KEY_SHOW_FPS))
 	{
-		if (f11pressed == 0)
+		if (show_fps_pressed == 0)
 		{
 			showfps ^= 1;
 			if (showfps == 0)
@@ -1253,9 +1443,9 @@ void osd_update_display(void)
 				need_to_clear_bitmap = 1;
 			}
 		}
-		f11pressed = 1;
+		show_fps_pressed = 1;
 	}
-	else f11pressed = 0;
+	else show_fps_pressed = 0;
 
 	if (showfpstemp)         /* MAURY_BEGIN: nuove opzioni */
 	{
@@ -1292,6 +1482,14 @@ void osd_update_display(void)
 	}
 	else curr = uclock();
 
+
+	/* for the FPS average calculation */
+	if (++frames_displayed == FRAMES_TO_SKIP)
+		start_time = curr;
+	else
+		end_time = curr;
+
+
 	memory = (memory+1) % MEMORY;
 
 	if (curr - prev[memory])
@@ -1305,10 +1503,17 @@ void osd_update_display(void)
 
 	prev[memory] = curr;
 
+	vfcount += frameskip+1;
+	if (vfcount >= Machine->drv->frames_per_second)
+	{
+		vfcount = 0;
+		vups = 1;
+	}
+
 	if (showfps || showfpstemp) /* MAURY: nuove opzioni */
 	{
 		int trueorientation;
-		int fps,i,l;
+		int fps,l;
 		char buf[30];
 
 
@@ -1322,6 +1527,13 @@ void osd_update_display(void)
 		l = strlen(buf);
 		for (i = 0;i < l;i++)
 			drawgfx(Machine->scrbitmap,Machine->uifont,buf[i],DT_COLOR_WHITE,0,0,gfx_display_columns+skipcolumns-(l-i)*Machine->uifont->width,skiplines,0,TRANSPARENCY_NONE,0);
+		if (vector_game)
+		{
+			sprintf(buf," %d vector updates",vups);
+			l = strlen(buf);
+			for (i = 0;i < l;i++)
+				drawgfx(Machine->scrbitmap,Machine->uifont,buf[i],DT_COLOR_WHITE,0,0,gfx_display_columns+skipcolumns-(l-i)*Machine->uifont->width,skiplines+8,0,TRANSPARENCY_NONE,0);
+		}
 
 		Machine->orientation = trueorientation;
 	}
@@ -1333,14 +1545,14 @@ void osd_update_display(void)
 
 	if (scrbitmap->depth == 8)
 	{
-		if (osd_key_pressed(OSD_KEY_LSHIFT) &&
-				(osd_key_pressed(OSD_KEY_PLUS_PAD) || osd_key_pressed(OSD_KEY_MINUS_PAD)))
+		if (osd_key_pressed(OSD_KEY_GAMMA_DOWN) ||
+			osd_key_pressed(OSD_KEY_GAMMA_UP))
 		{
 			for (i = 0;i < 256;i++) dirtycolor[i] = 1;
 			dirtypalette = 1;
 
-			if (osd_key_pressed(OSD_KEY_MINUS_PAD)) gamma_update -= 0.02;
-			if (osd_key_pressed(OSD_KEY_PLUS_PAD)) gamma_update += 0.02;
+			if (osd_key_pressed(OSD_KEY_GAMMA_DOWN)) gamma_update -= 0.02;
+			if (osd_key_pressed(OSD_KEY_GAMMA_UP)) gamma_update += 0.02;
 
 			if (gamma_update < -0.09)
 			{
@@ -1403,7 +1615,9 @@ void osd_update_display(void)
 					current_palette[current_background_color][1] != 0 ||
 					current_palette[current_background_color][2] != 0)
 			{
-				for (i = 0;i < 256;i++)
+				/* start from pen 255 (which is the game's color 0 */
+				/* because we allocated pens backwards) */
+				for (i = 255;i >= 0;i--)
 				{
 					if (current_palette[i][0] == 0 &&
 							current_palette[i][1] == 0 &&
@@ -1414,7 +1628,7 @@ void osd_update_display(void)
 					}
 				}
 
-				if (i < 256)
+				if (i >= 0)
 				{
 					/* update the background areas of the screen to the new color */
 					clear_screen();
@@ -1436,17 +1650,21 @@ void osd_update_display(void)
 
 	if (use_dirty)
 	{
-		swap_dirty();
+		if (!vector_game)
+			swap_dirty();
 		init_dirty(0);
 	}
 
-	/* if the user pressed F12, save a snapshot of the screen. */
-	if (osd_key_pressed(OSD_KEY_F12))
+	if (need_to_clear_bitmap)
+		osd_clearbitmap(scrbitmap);
+
+	/* if the user pressed KEY_SNAPSHOT, save a snapshot of the screen. */
+	if (osd_key_pressed(OSD_KEY_SNAPSHOT))
 	{
 		save_screen();
-		/* wait for the user to release F12 */
-		while (osd_key_pressed(OSD_KEY_F12));
+		/* wait for the user to release the key*/
+		while (osd_key_pressed(OSD_KEY_SNAPSHOT))
+			;
 	}
 }
-
 

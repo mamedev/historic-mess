@@ -222,6 +222,11 @@ int sound_start(void)
 				if( MSM5205_sh_start( Machine->drv->sound[totalsound].sound_interface ) != 0)
 					goto getout;
 				break;
+                        case SOUND_YM2612:
+                                if( YM2612_sh_start( Machine->drv->sound[totalsound].sound_interface ) != 0)
+					goto getout;
+				break;
+
 		}
 
 		totalsound++;
@@ -302,6 +307,10 @@ void sound_stop(void)
 			case SOUND_MSM5205:
 				MSM5205_sh_stop();
 				break;
+                        case SOUND_YM2612:
+                                YM2612_sh_stop();
+				break;
+
 		}
 		totalsound++;
 	}
@@ -378,6 +387,10 @@ void sound_update(void)
 			case SOUND_MSM5205:
 				MSM5205_sh_update();
 				break;
+                        case SOUND_YM2612:
+                                YM2612_sh_update();
+				break;
+                        
 		}
 
 		totalsound++;

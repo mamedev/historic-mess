@@ -13,7 +13,12 @@
 #include "driver.h"
 #include "psg.h"
 
-
+/* Self Update Customize */
+/* minimum update step */
+#define MIN_UPDATE 10
+/* Get Update Point */
+#define SELF_UPDATE
+#define GetUpdatePos() cpu_scalebyfcount(AYBufSize)
 
 #ifdef SIGNED_SAMPLES
 	#define MAX_OUTPUT 0x7fff
@@ -27,7 +32,8 @@ struct AY8910
 {
 	unsigned char Regs[16];
 	void *Buf;			/* sound buffer */
-	int bufp;				/* update buffer point */
+	int addr;			/* address register */
+	int bufp;			/* update buffer point */
 	unsigned int UpdateStep;
 	int PeriodA,PeriodB,PeriodC,PeriodN,PeriodE;
 	int CountA,CountB,CountC,CountN,CountE;
@@ -79,7 +85,7 @@ static int sample_16bit;
 ** 'rate'     is sampling rate and 'bufsiz' is the size of the
 ** buffer that should be updated at each interval
 */
-int AYInit(int num, int clock, int rate, int bitsize, int bufsiz, void **buffer )
+int AYInit(int num, int clk, int rate, int bitsize, int bufsiz, void **buffer )
 {
 	int i;
 
@@ -95,7 +101,7 @@ int AYInit(int num, int clock, int rate, int bitsize, int bufsiz, void **buffer 
 	for ( i = 0 ; i < AYNumChips; i++ )
 	{
 		memset(&AYPSG[i],0,sizeof(struct AY8910));
-		AYSetClock(i,clock,rate);
+		AYSetClock(i,clk,rate);
 		AYPSG[i].Buf = buffer[i];
 		AYSetGain(i,0x00);
 		AYResetChip(i);
@@ -124,6 +130,7 @@ void AYResetChip(int num)
 	PSG->OutputC = 0;
 	PSG->OutputN = 0xff;
 
+	PSG->addr = 0;
 	PSG->bufp = 0;
 	for (i = 0;i < AY_PORTA;i++)
 		AYWriteReg(num,i,0);
@@ -143,7 +150,16 @@ if (errorlog) fprintf(errorlog,"error: write to 8910 #%d, allocated only %d\n",n
 	}
 
 	if (r > 15) return;
-
+#ifdef SELF_UPDATE
+	if( r < 14 )
+	{
+		/* self update */
+		int pos = GetUpdatePos();
+		if( pos > AYBufSize ) pos = AYBufSize;
+		if( PSG->bufp+MIN_UPDATE <= pos )
+			AYUpdateOne(n,pos);
+	}
+#endif
 	PSG->Regs[r] = v;
 
 	/* A note about the period of tones, noise and envelope: for speed reasons,*/
@@ -308,17 +324,43 @@ if (errorlog) fprintf(errorlog,"warning: read from 8910 #%d Port B set as output
 	return PSG->Regs[r];
 }
 
+void AY8910Write(int n, int a, int v)
+{
+	struct AY8910 *PSG = &AYPSG[n];
 
+	if( !(a&1) )
+	{	/* Reister port */
+		PSG->addr = v & 0x0f;
+	}
+	else
+	{	/* Data port */
+		/* update check */
+		AYWriteReg(n,PSG->addr,v);
+	}
+}
+
+int AY8910Read(int n, int a)
+{
+	struct AY8910 *PSG = &AYPSG[n];
+
+	if( !(a&1) )
+	{	/* Reister port */
+		return 0;
+	}
+	/* Data port */
+	return AYReadReg(n,PSG->addr);
+}
 
 void AYUpdateOne(int chip,int endp)
 {
 	struct AY8910 *PSG = &AYPSG[chip];
-	void *buffer;
+	unsigned char  *buffer_8;
+	unsigned short *buffer_16;
 	int length;
 	int outn;
 
-	if( sample_16bit ) buffer = &((unsigned short *)PSG->Buf)[PSG->bufp];
-	else               buffer = &((unsigned char  *)PSG->Buf)[PSG->bufp];
+	buffer_8  = &((unsigned char  *)PSG->Buf)[PSG->bufp];
+	buffer_16 = &((unsigned short *)PSG->Buf)[PSG->bufp];
 
 	if( endp > AYBufSize ) endp = AYBufSize;
 	length = endp - PSG->bufp;
@@ -572,8 +614,8 @@ void AYUpdateOne(int chip,int endp)
 		}
 
 		output = vola*PSG->VolA + volb*PSG->VolB + volc*PSG->VolC;
-		if( sample_16bit ) *((unsigned short *)buffer)++ = output / STEP;
-		else               *((unsigned char  *)buffer)++ = output / (STEP*256);
+		if( sample_16bit ) *buffer_16++ = output / STEP;
+		else               *buffer_8++  = output / (STEP*256);
 
 		length--;
 	}
@@ -600,7 +642,7 @@ void AYUpdate(void)
 
 
 
-void AYSetClock(int n,int clock,int rate)
+void AYSetClock(int n,int clk,int rate)
 {
 	/* the step clock for the tone and noise generators is the chip clock */
 	/* divided by 8; for the envelope generator of the AY-3-8910, it is half */
@@ -610,7 +652,7 @@ void AYSetClock(int n,int clock,int rate)
 	/* at the given sample rate. No. of events = sample rate / (clock/8). */
 	/* STEP is a multiplier used to turn the fraction into a fixed point */
 	/* number. */
-	AYPSG[n].UpdateStep = ((double)STEP * rate * 8) / clock;
+	AYPSG[n].UpdateStep = ((double)STEP * rate * 8) / clk;
 }
 
 

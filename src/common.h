@@ -5,7 +5,7 @@
   Generic functions, mostly ROM and graphics related.
 
   MESS changes:
-	. prototypes for find_driver and drawgfx_line
+	. prototype for drawgfx_line
 	. Added MAX_ROM/FLOPPY/HARD/CASSETTE
 	
 *********************************************************************/
@@ -138,7 +138,7 @@ void showdisclaimer(void);
 #define COIN_COUNTERS	4	/* total # of coin counters */
 void coin_counter_w (int offset, int data);
 
-int readroms(const struct RomModule *romp,const char *basename);
+int readroms(void);
 void printromlist(const struct RomModule *romp,const char *basename);
 struct GameSamples *readsamples(const char **samplenames,const char *basename);
 void freesamples(struct GameSamples *samples);
@@ -158,13 +158,8 @@ void copyscrollbitmap(struct osd_bitmap *dest,struct osd_bitmap *src,
 void fillbitmap(struct osd_bitmap *dest,int pen,const struct rectangle *clip);
 void drawgfxzoom( struct osd_bitmap *dest_bmp,const struct GfxElement *gfx,
 		unsigned int code,unsigned int color,int flipx,int flipy,int sx,int sy,
-		const struct rectangle *clip,int scalex, int scaley );
+		const struct rectangle *clip,int transparency,int transparent_color,int scalex, int scaley );
 
-
-/* ASG 980209 - added: */
-#define rgbpenindex(r,g,b) ((Machine->scrbitmap->depth==16) ? ((((r)>>3)<<10)+(((g)>>3)<<5)+((b)>>3)) : ((((r)>>5)<<5)+(((g)>>5)<<2)+((b)>>6)))
-#define rgbpen(r,g,b) (Machine->pens[rgbpenindex(r,g,b)])
-#define setgfxcolorentry(gfx,i,r,g,b) ((gfx)->colortable[i] = rgbpen (r,g,b))
 
 /* MESS - begin */
 #define MAX_ROM 2        /* MAX_ROM is the maximum number of cartridge slots a driver supports */
@@ -177,7 +172,6 @@ extern char floppy_name[MAX_FLOPPY][32];
 extern char hard_name[MAX_HARD][32];
 extern char cassette_name[MAX_CASSETTE][32];
 
-int find_driver (const char *gamename);
 void drawgfx_line(struct osd_bitmap *dest,const struct GfxElement *gfx,
 		unsigned int code,unsigned int color,int flipx,int start,int sx,int sy,
 		const struct rectangle *clip,int transparency,int transparent_color);

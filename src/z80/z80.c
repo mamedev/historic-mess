@@ -658,8 +658,8 @@ static void inc_sp(void) { ++R.SP.W.l; }
 
 static void ind(void)
 {
- --R.BC.B.h;
  M_WRMEM(R.HL.D,DoIn(R.BC.B.l,R.BC.B.h));
+ --R.BC.B.h;
  --R.HL.W.l;
  R.AF.B.l=(R.BC.B.h)? N_FLAG:(N_FLAG|Z_FLAG);
 }
@@ -672,8 +672,8 @@ static void indr(void)
 
 static void ini(void)
 {
- --R.BC.B.h;
  M_WRMEM(R.HL.D,DoIn(R.BC.B.l,R.BC.B.h));
+ --R.BC.B.h;
  ++R.HL.W.l;
  R.AF.B.l=(R.BC.B.h)? N_FLAG:(N_FLAG|Z_FLAG);
 }
@@ -1001,8 +1001,8 @@ static void or_byte(void) { byte i=M_RDMEM_OPCODE(); M_OR(i); }
 
 static void outd(void)
 {
- --R.BC.B.h;
  DoOut (R.BC.B.l,R.BC.B.h,M_RDMEM(R.HL.D));
+ --R.BC.B.h;
  --R.HL.W.l;
  R.AF.B.l=(R.BC.B.h)? N_FLAG:(Z_FLAG|N_FLAG);
 }
@@ -1013,8 +1013,8 @@ static void otdr(void)
 }
 static void outi(void)
 {
- --R.BC.B.h;
  DoOut (R.BC.B.l,R.BC.B.h,M_RDMEM(R.HL.D));
+ --R.BC.B.h;
  ++R.HL.W.l;
  R.AF.B.l=(R.BC.B.h)? N_FLAG:(Z_FLAG|N_FLAG);
 }
@@ -1266,7 +1266,7 @@ static void ret_z(void) { if (M_Z) { M_RET; } else { M_SKIP_RET; } }
 
 /* search highest interrupt request device (next interrupt device) */
 /*    and highest interrupt service device (next reti      device) */
-static inline void check_daisy_chain( void )
+INLINE void check_daisy_chain( void )
 {
 	int device;
 
@@ -1985,9 +1985,6 @@ static unsigned cycles_ed[256]=
   0,0,0,0,0,0,0,0,
   0,0,0,0,0,0,0,0
 };
-
-static void no_op_xx(void) {
-++R.PC.W.l; }
 
 static opcode_fn opcode_dd_cb[256]=
 {

@@ -93,11 +93,15 @@ given operating system, they should be sent to the respective port maintainer.
 You will find their e-mail address in the "readme.1st" file that comes with MESS.
 
 Brad Oliver           bradman@primenet.com (current coordinator)
+
 Mike Balfour          mab22@po.cwru.edu
 Richard Bannister     titan@indigo.ie
 Juergen Buchmueller   pullmoll@t-online.de
 Gareth Long           gatch@elecslns.demon.co.uk
 Jeff Mitchell         skeezix@skeleton.org
+Frank Palazzolo       palazzol@home.com
+Mathis Rosenhauer     rosenhau@mailserv.sm.go.dlr.de
+Chris Salomon         chrissalo@aol.com
 
 DON'T SEND BINARY ATTACHMENTS WITHOUT ASKING FIRST, *ESPECIALLY* ROM IMAGES.
 
@@ -124,6 +128,39 @@ options that are specific to each platform.
 Supported Systems
 -----------------
 
+Apple II Family:
+----------------
+Usage:
+	See the "Keyboard Setup" menu, accessible by hitting TAB, for key mappings.
+
+Compatibility:
+	It boots up some disk images if you pick the Apple IIc driver. Others haven't
+	been tested very extensively and probably won't work. This driver is still
+	preliminary.
+	
+	
+Astrocade:
+----------
+	
+	
+Atari 800:
+----------
+Usage:
+	See the "Keyboard Setup" menu, accessible by hitting TAB, for key mappings.
+
+Compatibility:
+	It runs just about anything you throw at it.
+	
+	
+Atari 5200:
+-----------
+Usage:
+	See the "Keyboard Setup" menu, accessible by hitting TAB, for key mappings.
+
+Compatibility:
+	This driver is preliminary and won't run past the demo screen. Help is needed.
+	
+	
 ColecoVision:
 -------------
 Usage:
@@ -195,6 +232,7 @@ To access the virtual floppy disc capabilities you need:
 And as an add-on "DOS Interface" you can use:
 	NEWE000.ROM     4K Extension
 
+
 Genesis (MegaDrive in Japan/Europe):
 ------------------------------------
 Usage:
@@ -229,8 +267,7 @@ Compatibility:
 
 	Sprite/layer priority should be perfect.
 
-	Sound is emulated at Z80 and PSG76489 level. There is no inbuilt YM2612 support,
-	this will follow on soon using software FM synthesis.  
+	Sound is emulated at Z80 and PSG76489 level. There is preliminary YM2612 support.
 
 Notes:
 	I still consider the Genesis driver extremely preliminary. I have a lot of further
@@ -254,6 +291,11 @@ Thanks:
 	and, of course, Stan, Kyle, Eric, Kenny...
 	
 	Please note that no goats were sacrificed during the development of this driver. 
+
+
+Kaypro CP/M:
+------------
+
 
 NES:
 ----
@@ -281,8 +323,7 @@ Compatibility:
     for the next release. For the record, it supports mappers 1, 2, 3, 4, 5 (incomplete),
     7, 8, 9 & 10 (incomplete), 11, 15, 16, 18 (vrom probs), 25 (vrom probs), 33, 34,
     64, 65, 66, 68 (incomplete), 69 (incomplete), 71, 78, 79.
-    Some of the mappers > 63 haven't been fully tested yet. Mapper numbers > 64 could
-    also change as the specs for each are finalized.
+    Some of the mappers > 63 haven't been fully tested yet.
     
 Notes:
     The main focus up until this point has been in getting the NES driver as accurate
@@ -293,8 +334,7 @@ Notes:
     that are not present in a few other NES emulators.
     
 Wanted:
-	I'd really like a color prom dump from a real NES. Right now, it uses a hand-crafted
-	palette. I'd also appreciate any info on some of the more obscure mappers. If you have
+	I'd appreciate any info on some of the more obscure mappers. If you have
 	any of this, please drop me a line at bradman@primenet.com.
 	
 Thanks:
@@ -303,6 +343,32 @@ Thanks:
 	the development of the NES driver. And last but not least, thanks to Jeremy Chadwick
 	and Firebug for their respective NES docs, without which this driver would have taken
 	considerably longer. I'll be sending you guys updates for both files soon. ;)
+
+
+PDP/1:
+------
+
+
+Sega MasterSystem/GameGear:
+---------------------------
+Usage:
+	arrow keys - 1p move
+	control, alt - 1p fire
+	1,2 - 1, 2 player select
+	return - 1p start
+	See the "Keyboard Setup" menu, accessible by hitting TAB, for more key mappings.
+	
+Compatibility:
+    It's not very compatible right now. The code is still quite preliminary. It should run
+    most of the ROMs, but quite a few exhibit graphics glitches. The MasterSystem has
+    totally incorrect color also. Sound emulation appears to be near perfect though.
+    
+Wanted:
+	We'd like some spare time to work on this. Care to donate any? :)
+	
+Thanks:
+	Thanks to Marat Fayzullin for his MasterGear emulation.
+
 
 TRS-80:
 -------
@@ -336,8 +402,28 @@ Compatibility:
 
 Notes:
 The TRS-80 driver requires the presence of the following images:
-	TRS80.ROM       12K Level II Basic.
-	TRS80.FNT       6x15 default character set with block graphics.
+	TRS80.ROM         12K Level II Basic.
+	TRS80M1.CHR       6x15 default character set with block graphics.
+
+
+Vectrex:
+--------
+Usage:
+	See the "Keyboard Setup" menu, accessible by hitting TAB, for key mappings.
+
+Compatibility:
+	To the best of our knowledge, this emulation should run most cartridges
+	accurately.
+
+Notes:
+	The Vectrex driver requires the presence of "SYSTEM.IMG".  The driver
+	will not function without this ROM.  A real Vectrex also will not
+	function without this ROM. Also, overlay support isn't present but is
+	being worked on for a future release.
+
+Thanks:
+	Special thanks to Keith Wilkins and Chris Salomon for their work on DVE
+	and their help,	without which this driver would have taken much longer.
 
 
 
@@ -361,7 +447,7 @@ M68000 emulator taken from the System 16 Arcade Emulator by Thierry Lescot.
 TMS5220 emulator by Frank Palazzolo.
 AY-3-8910 emulation based on various code snippets by Ville Hallik,
   Michael Cuddy, Tatsuyuki Satoh, Fabrice Frances, Nicola Salmoria.
-YM-2203 and YM-2151 emulation by Tatsuyuki Satoh.
+YM-2203, YM-2151, YM-2608 and YM-2612 emulation by Tatsuyuki Satoh.
 OPL based YM-2203 emulation by Ishmair (ishmair@vnet.es).
 POKEY emulator by Ron Fries (rfries@aol.com).
 Many thanks to Eric Smith, Hedley Rainne and Sean Trowbridge for information
