@@ -154,6 +154,8 @@ void votrax_get_info(void *token, UINT32 state, union sndinfo *info);
 void beep_get_info(void *token, UINT32 state, union sndinfo *info);
 void speaker_get_info(void *token, UINT32 state, union sndinfo *info);
 void wave_get_info(void *token, UINT32 state, union sndinfo *info);
+void sid6581_get_info(void *token, UINT32 state, union sndinfo *info);
+void sid8580_get_info(void *token, UINT32 state, union sndinfo *info);
 #endif
 
 void filter_volume_get_info(void *token, UINT32 state, union sndinfo *info);
@@ -402,6 +404,12 @@ const struct
 #endif
 #if (HAS_WAVE)
 	{ SOUND_WAVE, wave_get_info },
+#endif
+#if (HAS_SID6581)
+	{ SOUND_SID6581, sid6581_get_info },
+#endif
+#if (HAS_SID8580)
+	{ SOUND_SID8580, sid8580_get_info },
 #endif
 #endif
 
@@ -1057,7 +1065,7 @@ void sound_frame_update(void)
 					for (sample = 0; sample < samples_this_frame; sample++)
 						leftmix[sample] += stream_buf[sample];
 				
-				/* if the speaker is to the right, send only to the left */
+				/* if the speaker is to the right, send only to the right */
 				else
 					for (sample = 0; sample < samples_this_frame; sample++)
 						rightmix[sample] += stream_buf[sample];
