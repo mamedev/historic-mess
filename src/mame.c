@@ -454,6 +454,9 @@ int run_game(int game)
 #ifdef MAME_DEBUG
 	/* validity checks */
 	if (validitychecks()) return 1;
+	#ifdef MESS
+	if (messvaliditychecks()) return 1;
+	#endif
 #endif
 
 
@@ -571,11 +574,6 @@ int run_game(int game)
 	/* Do the work*/
 	err = 1;
 	bailing = 0;
-
-	#ifdef MESS
-	if (get_filenames())
-		return err;
-	#endif
 
 	if (options.savegame)
 		cpu_loadsave_schedule(LOADSAVE_LOAD, options.savegame);
@@ -964,6 +962,9 @@ static int vh_open(void)
 				vh_close();
 				return 1;
 			}
+
+			state_save_register_UINT8("generic_video", 0, "buffered_spriteram", buffered_spriteram, spriteram_size);
+
 			if (spriteram_2_size)
 			{
 				buffered_spriteram_2 = malloc(spriteram_2_size);
@@ -972,6 +973,8 @@ static int vh_open(void)
 					vh_close();
 					return 1;
 				}
+
+				state_save_register_UINT8("generic_video", 0, "buffered_spriteram_2", buffered_spriteram_2, spriteram_2_size);
 			}
 
 			buffered_spriteram16 = (data16_t *)buffered_spriteram;
@@ -1111,14 +1114,20 @@ int run_machine(void)
 	{
 		tilemap_init();
 		sprite_init();
-		gfxobj_init();
 		if (drv->vh_start == 0 || (*drv->vh_start)() == 0)		/* start the video hardware */
 		{
 			if (sound_start() == 0) /* start the audio hardware */
 			{
 				int region;
 
-				real_scrbitmap = (artwork_overlay || artwork_backdrop) ? artwork_real_scrbitmap : Machine->scrbitmap;
+				if (artwork_overlay || artwork_backdrop)
+				{
+					real_scrbitmap = artwork_real_scrbitmap;
+					artwork_remap();
+				}
+				else
+					real_scrbitmap = Machine->scrbitmap;
+
 
 				/* free memory regions allocated with REGIONFLAG_DISPOSE (typically gfx roms) */
 				for (region = 0; region < MAX_MEMORY_REGIONS; region++)
@@ -1200,7 +1209,6 @@ userquit:
 			printf("Unable to start video emulation\n");
 		}
 
-		gfxobj_close();
 		sprite_close();
 		tilemap_close();
 		vh_close();
