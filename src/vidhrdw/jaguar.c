@@ -139,12 +139,15 @@
 #include "machine/atarigen.h"
 #include "cpu/mips/r3000.h"
 #include "cpu/m68000/m68000.h"
-#include "jaguar.h"
+#include "includes/jaguar.h"
 #include "jagblit.h"
 
 
 #define LOG_BLITS			0
+#define LOG_BAD_BLITS		0
 #define LOG_BLITTER_STATS	0
+#define LOG_BLITTER_WRITE	0
+#define LOG_UNHANDLED_BLITS	0
 
 
 // interrupts to main CPU:
@@ -223,9 +226,9 @@ static void blitter_01800001_000018_000018(UINT32 command, UINT32 a1flags, UINT3
 static void blitter_01c00001_000018_000018(UINT32 command, UINT32 a1flags, UINT32 a2flags);
 
 #ifdef MESS
-static void blitter_00010000_000018_000020(UINT32 command, UINT32 a1flags, UINT32 a2flags);
-static void blitter_01800001_000020_000020(UINT32 command, UINT32 a1flags, UINT32 a2flags);
-static void blitter_01800001_000028_000028(UINT32 command, UINT32 a1flags, UINT32 a2flags);
+static void blitter_00010000_xxxxxx_xxxxxx(UINT32 command, UINT32 a1flags, UINT32 a2flags);
+static void blitter_01800001_xxxxxx_xxxxxx(UINT32 command, UINT32 a1flags, UINT32 a2flags);
+static void blitter_x1800x01_xxxxxx_xxxxxx(UINT32 command, UINT32 a1flags, UINT32 a2flags);
 #endif
 
 
@@ -482,24 +485,7 @@ void jaguar_set_palette(UINT16 vmode)
 
 static UINT8 *get_jaguar_memory(UINT32 offset)
 {
-	offset &= 0xffffff;
-#ifdef MESS
-	{
-		UINT8 *p = memory_get_read_ptr(1, offset);
-		if (p)
-			return p;
-	}
-#else
-	if (offset < 0x800000)
-		return (UINT8 *)jaguar_shared_ram + offset;
-	else if (offset >= 0xf03000 && offset < 0xf04000)
-		return (UINT8 *)jaguar_gpu_ram + offset - 0xf03000;
-	else if (offset >= 0xf1b000 && offset < 0xf1d000)
-		return (UINT8 *)jaguar_dsp_ram + offset - 0xf1b000;
-#endif
-
-	logerror("get_jaguar_memory(%X)\n", offset);
-	return NULL;
+	return memory_get_read_ptr(1, offset);
 }
 
 
@@ -550,21 +536,21 @@ void blitter_run(void)
 	}
 
 #ifdef MESS
-	if (command == 0x00010000 && a1flags == 0x000018 && a2flags == 0x000020)
+	if (command == 0x00010000)
 	{
-		blitter_00010000_000018_000020(blitter_regs[B_CMD], blitter_regs[A1_FLAGS], blitter_regs[A2_FLAGS]);
+		blitter_00010000_xxxxxx_xxxxxx(blitter_regs[B_CMD], blitter_regs[A1_FLAGS], blitter_regs[A2_FLAGS]);
 		return;
 	}
 
-	if (command == 0x01800001 && a1flags == 0x000020 && a2flags == 0x000020)
+	if (command == 0x01800001)
 	{
-		blitter_01800001_000020_000020(blitter_regs[B_CMD], blitter_regs[A1_FLAGS], blitter_regs[A2_FLAGS]);
+		blitter_01800001_xxxxxx_xxxxxx(blitter_regs[B_CMD], blitter_regs[A1_FLAGS], blitter_regs[A2_FLAGS]);
 		return;
 	}
 
-	if (command == 0x01800001 && a1flags == 0x000028 && a2flags == 0x000028)
+	if ((command & 0x0ffff0ff) == 0x01800001)
 	{
-		blitter_01800001_000028_000028(blitter_regs[B_CMD], blitter_regs[A1_FLAGS], blitter_regs[A2_FLAGS]);
+		blitter_x1800x01_xxxxxx_xxxxxx(blitter_regs[B_CMD], blitter_regs[A1_FLAGS], blitter_regs[A2_FLAGS]);
 		return;
 	}
 #endif
@@ -630,7 +616,9 @@ WRITE32_HANDLER( jaguar_blitter_w )
 	if (offset == B_CMD)
 		blitter_run();
 
+#if LOG_BLITTER_WRITE
 	logerror("%08X:Blitter write register @ F022%02X = %08X\n", activecpu_get_previouspc(), offset * 4, data);
+#endif
 }
 
 
@@ -765,7 +753,6 @@ VIDEO_START( cojag )
 
 	vi_timer = timer_alloc(vi_callback);
 
-	assert(sizeof(*pen_table) == sizeof(UINT32));
 	state_save_register_UINT32("cojag", 0, "pen_table",     pen_table,      65536);
 	state_save_register_UINT32("cojag", 0, "blitter_regs",  blitter_regs,   BLITTER_REGS);
 	state_save_register_UINT16("cojag", 0, "gpu_regs",      gpu_regs,       GPU_REGS);
@@ -892,30 +879,30 @@ VIDEO_UPDATE( cojag )
 
 #ifdef MESS
 
-#define FUNCNAME	blitter_00010000_000018_000020
+#define FUNCNAME	blitter_00010000_xxxxxx_xxxxxx
 #define COMMAND		0x00010000
-#define A1FIXED		0x000018
-#define A2FIXED		0x000020
+#define A1FIXED		a1flags
+#define A2FIXED		a2flags
 #include "jagblit.c"
 #undef A2FIXED
 #undef A1FIXED
 #undef COMMAND
 #undef FUNCNAME
 
-#define FUNCNAME	blitter_01800001_000020_000020
+#define FUNCNAME	blitter_01800001_xxxxxx_xxxxxx
 #define COMMAND		0x01800001
-#define A1FIXED		0x000020
-#define A2FIXED		0x000020
+#define A1FIXED		a1flags
+#define A2FIXED		a2flags
 #include "jagblit.c"
 #undef A2FIXED
 #undef A1FIXED
 #undef COMMAND
 #undef FUNCNAME
 
-#define FUNCNAME	blitter_01800001_000028_000028
-#define COMMAND		0x01800001
-#define A1FIXED		0x000028
-#define A2FIXED		0x000028
+#define FUNCNAME	blitter_x1800x01_xxxxxx_xxxxxx
+#define COMMAND		((command & 0xf0000f00) | 0x01800001)
+#define A1FIXED		a1flags
+#define A2FIXED		a2flags
 #include "jagblit.c"
 #undef A2FIXED
 #undef A1FIXED

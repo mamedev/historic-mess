@@ -509,7 +509,7 @@ const char* mame_fhash(mame_file *file)
 
 int mame_fgetc(mame_file *file)
 {
-	char buffer;
+	unsigned char buffer;
 
 	/* switch off the file type */
 	switch (file->type)
@@ -970,6 +970,11 @@ static mame_file *generic_fopen(int pathtype, const char *gamename, const char *
 				{
 					/* get name of parent directory into newname & oldname */
 					newname = osd_dirname(oldname);
+
+					/* if we are at a "blocking point", break out now */
+					if (newname && !strcmp(oldname, newname))
+						newname = NULL;
+
 					if (oldnewname)
 						free(oldnewname);
 					oldname = oldnewname = newname;

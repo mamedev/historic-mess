@@ -13,7 +13,9 @@
 #include "driver.h"
 #include "includes/snes.h"
 #include "cpu/g65816/g65816.h"
+#ifdef MESS
 #include "image.h"
+#endif
 
 /* -- Useful Defines -- */
 #define USE_SPCSKIPPER		/* Use the SPCSkipper instead of the SPC700 */
@@ -33,6 +35,7 @@ static INT16 vram_fg_offset;	/* Fullgraphic offset */
 UINT8  spc_port_in[4];	/* Port for sending data to the SPC700 */
 UINT8  spc_port_out[4];	/* Port for receiving data from the SPC700 */
 static UINT16 joypad_oldrol;				/* For old joystick stuff */
+static UINT8 snes_hdma_chnl;	/* channels enabled for HDMA */
 static struct
 {
 	UINT8  mode;		/* ROM memory mode */
@@ -69,6 +72,8 @@ static void snes_init_ram(void)
 	vram_read_offset = 2;
 }
 
+/* should we treat this as nvram in MAME? */
+#ifdef MESS
 /* Loads the battery backed RAM into the appropriate memory area */
 static void snes_load_sram(void)
 {
@@ -129,6 +134,7 @@ static void snes_save_sram(void)
 
 	free( battery_ram );
 }
+#endif
 
 MACHINE_INIT( snes )
 {
@@ -141,12 +147,14 @@ MACHINE_INIT( snes )
 		snes_ram[STAT78] = SNES_PAL;
 }
 
+#ifdef MESS
 MACHINE_STOP( snes )
 {
 	/* Save SRAM */
 	if( cart.sram > 0 )
 		snes_save_sram();
 }
+#endif
 
 /* Handle reading of Mode 20 SRAM */
 /* 0x700000 - 0x77ffff */
@@ -193,12 +201,12 @@ READ_HANDLER( snes_r_bank2 )
 		return cpu_readmem24( 0x7e0000 + address );
 	else if( address >= 0x2000 && address <= 0x5fff )	/* I/O */
 		return snes_r_io( address );
-	else if( address >= 0x6000 && address <= 0x7fff )	/* Reserved */
+	else if( address >= 0x6000 && address <= 0x7fff )
 	{
 		if( cart.mode == SNES_MODE_20 )
-			return 0xff;
+			return 0xff;						/* Reserved */
 		else	/* MODE_21 */
-			return snes_ram[0x300000 + offset];		/* FIXME: this should be sram */
+			return snes_ram[0x300000 + offset];	/* sram */
 	}
 	else
 	{
@@ -219,7 +227,7 @@ READ_HANDLER( snes_r_bank3 )
 	if( cart.mode == SNES_MODE_20 )
 	{
 		if( address <= 0x7fff )
-			return 0xff;
+			return 0xff;		/* Reserved */
 		else
 			return snes_ram[0x400000 + offset];
 	}
@@ -276,12 +284,12 @@ WRITE_HANDLER( snes_w_bank2 )
 		cpu_writemem24( 0x7e0000 + address, data );
 	else if( address >= 0x2000 && address <= 0x5fff )	/* I/O */
 		snes_w_io( address, data );
-	else if( address >= 0x6000 && address <= 0x7fff )	/* Reserved */
+	else if( address >= 0x6000 && address <= 0x7fff )
 	{
-		if( cart.mode == SNES_MODE_20 )
+		if( cart.mode == SNES_MODE_20 )			/* Reserved */
 			logerror( "Attempt to write to reserved address: %X\n", offset );
-		else
-			snes_ram[0x300000 + offset] = data;  /* FIXME: this should be sram */
+		else /* MODE_21 */
+			snes_ram[0x300000 + offset] = data;  /* sram */
 	}
 	else
 		logerror( "Attempt to write to ROM address: %X\n", offset );
@@ -590,6 +598,21 @@ READ_HANDLER( snes_r_io )
 		case DMAP7: case BBAD7: case A1T7L: case A1T7H: case A1B7: case DAS7L:
 		case DAS7H: case DSAB7: case A2A7L: case A2A7H: case NTRL7:
 			return snes_ram[offset];
+
+#ifndef MESS
+		case 0x4100: // NSS Dip-Switches
+#ifdef MAME_DEBUG
+			return readinputport(12);
+#else
+			return readinputport(9);
+#endif
+//		case 0x4101: //PC: a104 - a10e - a12a	//only nss_actr
+//		case 0x420c: //PC: 9c7d - 8fab			//only nss_ssoc
+
+		default:
+			printf("offset = %x pc = %x\n",offset,activecpu_get_pc());
+#endif
+
 	}
 
 	/* Unsupported reads return 0xff */
@@ -605,7 +628,8 @@ WRITE_HANDLER( snes_w_io )
 			snes_ppu.update_palette = 1;
 			break;
 		case OBSEL:		/* Object size and data area designation */
-			snes_ppu.layer[4].data = (((data & 0x3) * 0x2000) + (((data & 0x18)>>3) * 0x1000)) * 2;
+			snes_ppu.layer[4].data = ((data & 0x3) * 0x2000) << 1;
+			snes_ppu.oam.name_select = (((data & 0x18)>>3) * 0x1000) << 1;
 			/* Determine sprite size */
 			switch( (data & 0xe0) >> 5 )
 			{
@@ -666,12 +690,6 @@ WRITE_HANDLER( snes_w_io )
 			snes_ppu.layer[1].tile_size = (data >> 5) & 0x1;
 			snes_ppu.layer[2].tile_size = (data >> 6) & 0x1;
 			snes_ppu.layer[3].tile_size = (data >> 7) & 0x1;
-#ifdef SNES_DBG_REG_W
-			if( ((data & 0xf0) != (snes_ram[BGMODE] & 0xf0)) )
-				printf( "BG tile sizes: 4:%d 3:%d 2:%d 1:%d\n", data & 0x80, data & 0x40, data & 0x20, data & 0x10 );
-			if( ((data & 0x7) != (snes_ram[BGMODE] & 0x7)) )
-				printf( "BG mode: %d\n", data & 0x7  );
-#endif
 			break;
 		case MOSAIC:	/* Size and screen designation for mosaic */
 			/* FIXME: We don't support horizontal mosaic yet */
@@ -1055,7 +1073,7 @@ WRITE_HANDLER( snes_w_io )
  * If it fails at least 3 checks then we'll assume it's not valid */
 static int snes_validate_infoblock( UINT8 *infoblock, UINT16 offset )
 {
-	INT8 valid = 5;
+	INT8 valid = 6;
 
 	/* Check the CRC and inverse CRC */
 	if( ((infoblock[offset + 0x1c] + (infoblock[offset + 0x1d] << 8)) |
@@ -1063,7 +1081,7 @@ static int snes_validate_infoblock( UINT8 *infoblock, UINT16 offset )
 	{
 		valid -= 3;
 	}
-	/* Check the ROM Size */
+	/* Check the ROM Size is in a valid range */
 	if( infoblock[offset + 0x17] > 13 )
 	{
 		valid--;
@@ -1073,8 +1091,13 @@ static int snes_validate_infoblock( UINT8 *infoblock, UINT16 offset )
 	{
 		valid--;
 	}
-	/* Check the Country */
+	/* Check the Country is in a valid range */
 	if( infoblock[offset + 0x19] > 13 )
+	{
+		valid--;
+	}
+	/* Check the game version */
+	if( infoblock[offset + 0x1b] >= 128 )
 	{
 		valid--;
 	}
@@ -1087,6 +1110,7 @@ static int snes_validate_infoblock( UINT8 *infoblock, UINT16 offset )
 	return valid;
 }
 
+#ifdef MESS
 DEVICE_LOAD(snes_cart)
 {
 	int i;
@@ -1210,12 +1234,12 @@ DEVICE_LOAD(snes_cart)
 	{
 		/* In mode 20, all blocks are 32kb. There are upto 96 blocks, giving a
 		 * total of 24mbit(3mb) of ROM.
-		 * The first 48 blocks are located in banks 0x00 to 0x2f at the address
+		 * The first 48 blocks are located in banks 0x00 to 0x2f at address
 		 * 0x8000.  They are mirrored in banks 0x80 to 0xaf.
 		 * The next 16 blocks are located in banks 0x30 to 0x3f at address
 		 * 0x8000.  They are mirrored in banks 0xb0 to 0xbf.
 		 * The final 32 blocks are located in banks 0x40 - 0x5f at address
-		 * 0x8000.  They are mirrord in banks 0xc0 to 0xdf.
+		 * 0x8000.  They are mirrored in banks 0xc0 to 0xdf.
 		 */
 		i = 0;
 		while( i < 96 && readblocks <= totalblocks )
@@ -1230,7 +1254,7 @@ DEVICE_LOAD(snes_cart)
 		 * total of 48mbit(6mb) of ROM.
 		 * The first 64 blocks are located in banks 0xc0 to 0xff. The MSB of
 		 * each bank is mirrored in banks 0x00 to 0x3f.
-		 * The final 48 blocks are located in banks 0x40 to 0x5f.
+		 * The final 32 blocks are located in banks 0x40 to 0x5f.
 		 */
 
 		/* read first 64 blocks */
@@ -1240,9 +1264,9 @@ DEVICE_LOAD(snes_cart)
 			mame_fread( file, &snes_ram[0xc00000 + (i++ * 0x10000)], 0x10000);
 			readblocks++;
 		}
-		/* read the next 48 blocks */
+		/* read the next 32 blocks */
 		i = 0;
-		while( i < 48 && readblocks <= totalblocks )
+		while( i < 32 && readblocks <= totalblocks )
 		{
 			mame_fread( file, &snes_ram[0x400000 + (i++ * 0x10000)], 0x10000);
 			readblocks++;
@@ -1265,7 +1289,7 @@ DEVICE_LOAD(snes_cart)
 		printf( "ROM DETAILS\n" );
 		printf( "\tHeader found:  %s\n", offset ? "Yes" : "No" );
 		printf( "\tTotal blocks:  %d (%dmb)\n", totalblocks, totalblocks / (cart.mode == SNES_MODE_20 ? 32 : 16) );
-		printf( "\tROM bank size: %s\n", (cart.mode == SNES_MODE_20) ? "LoROM" : "HiROM" );
+		printf( "\tROM bank size: %s (LoROM: %d , HiROM: %d)\n", (cart.mode == SNES_MODE_20) ? "LoROM" : "HiROM", valid_mode20, valid_mode21 );
 		for( i = 0; i < 2; i++ )
 			companyid[i] = snes_r_bank1(0x00ffb0 + i);
 		printf( "\tCompany ID:    %s\n", companyid );
@@ -1305,6 +1329,60 @@ DEVICE_LOAD(snes_cart)
 	/* All done */
 	return INIT_PASS;
 }
+#else /* for mame we use an init, maybe we will need more dfor the different games */
+DRIVER_INIT( snes )
+{
+	int i;
+	UINT16 totalblocks, readblocks;
+	UINT8  *rom;
+
+	rom = memory_region( REGION_USER3 );
+	snes_ram = memory_region( REGION_CPU1 );
+	memset( snes_ram, 0, 0x1000000 );
+
+	/* all NSS games seem to use MODE 20 */
+	cart.mode = SNES_MODE_20;
+	cart.sram_max = 0x40000;
+
+	/* Find the number of blocks in this ROM */
+	//totalblocks = ((mame_fsize(file) - offset) >> (cart.mode == MODE_20 ? 15 : 16));
+	totalblocks = (memory_region_length(REGION_USER3) / 0x8000) - 1;
+
+	/* FIXME: Insert crc check here */
+
+	readblocks = 0;
+	{
+		/* In mode 20, all blocks are 32kb. There are upto 96 blocks, giving a
+		 * total of 24mbit(3mb) of ROM.
+		 * The first 48 blocks are located in banks 0x00 to 0x2f at address
+		 * 0x8000.  They are mirrored in banks 0x80 to 0xaf.
+		 * The next 16 blocks are located in banks 0x30 to 0x3f at address
+		 * 0x8000.  They are mirrored in banks 0xb0 to 0xbf.
+		 * The final 32 blocks are located in banks 0x40 - 0x5f at address
+		 * 0x8000.  They are mirrored in banks 0xc0 to 0xdf.
+		 */
+		i = 0;
+		while( i < 96 && readblocks <= totalblocks )
+		{
+			//mame_fread( file, &snes_ram[(i++ * 0x10000) + 0x8000], 0x8000);
+			memcpy(&snes_ram[(i * 0x10000) + 0x8000], &rom[i * 0x8000], 0x8000);
+			i++;
+			readblocks++;
+		}
+	}
+
+	/* Find the amount of sram */
+	cart.sram = snes_r_bank1(0x00ffd8);
+	if( cart.sram > 0 )
+	{
+		cart.sram = ((1 << (cart.sram + 3)) / 8);
+		if( cart.sram > cart.sram_max )
+			cart.sram = cart.sram_max;
+	}
+
+	free_memory_region(REGION_USER3);
+}
+#endif
 
 INTERRUPT_GEN(snes_scanline_interrupt)
 {
@@ -1327,11 +1405,11 @@ INTERRUPT_GEN(snes_scanline_interrupt)
 	/* Let's draw the current line */
 	if( snes_ppu.beam.current_vert < snes_ppu.beam.last_visible_line )
 	{
-		snes_refresh_scanline( snes_ppu.beam.current_vert );
-
 		/* Do HDMA */
 		if( snes_ram[HDMAEN] )
 			snes_hdma();
+
+		snes_refresh_scanline( snes_ppu.beam.current_vert );
 	}
 
 	/* Vertical IRQ timer */
@@ -1370,6 +1448,7 @@ void snes_hdma_init()
 {
 	UINT8 mask = 1, dma = 0, i;
 
+	snes_hdma_chnl = snes_ram[HDMAEN];
 	for( i = 0; i < 8; i++ )
 	{
 		if( snes_ram[HDMAEN] & mask )
@@ -1392,7 +1471,7 @@ void snes_hdma()
 	/* Assume priority of the 8 DMA channels is 0-7 */
 	for( i = 0; i < 8; i++ )
 	{
-		if( snes_ram[HDMAEN] & mask )
+		if( snes_hdma_chnl & mask )
 		{
 			/* Check if we need to read a new line from the table */
 			if( !(snes_ram[SNES_DMA_BASE + dma + 0xa] & 0x7f ) )
@@ -1404,7 +1483,7 @@ void snes_hdma()
 				if( !snes_ram[SNES_DMA_BASE + dma + 0xa] )
 				{
 					/* No more lines so clear HDMA */
-					snes_ram[HDMAEN] &= ~mask;
+					snes_hdma_chnl &= ~mask;
 					continue;
 				}
 				abus++;
