@@ -38,8 +38,8 @@ ifneq ($(CPU),)
 OBJDIRS += $(OBJ)/cpu/cdp1802
 CPUDEFS += -DHAS_CDP1802=1
 CPUOBJS += $(OBJ)/cpu/cdp1802/cdp1802.o
-DBGOBJS += $(OBJ)/cpu/cdp1802/disasm.o
-$(OBJ)/cpu/cdp1802/cdp1802.o: table.c
+DBGOBJS += $(OBJ)/cpu/cdp1802/1802dasm.o
+$(OBJ)/cpu/cdp1802/cdp1802.o: 1802tbl.c
 else
 CPUDEFS += -DHAS_CDP1802=0
 endif
@@ -832,6 +832,17 @@ DBGOBJS += $(OBJ)/cpu/spc700/spc700ds.o
 $(OBJ)/cpu/spc700/spc700.o: spc700.c spc700.h
 else
 CPUDEFS += -DHAS_SPC700=0
+endif
+
+CPU=$(strip $(findstring ASAP@,$(CPUS)))
+ifneq ($(CPU),)
+OBJDIRS += $(OBJ)/cpu/asap
+CPUDEFS += -DHAS_ASAP=1
+CPUOBJS += $(OBJ)/cpu/asap/asap.o
+DBGOBJS += $(OBJ)/cpu/asap/asapdasm.o
+$(OBJ)/cpu/asap/asap.o: asap.c asap.h
+else
+CPUDEFS += -DHAS_ASAP=0
 endif
 
 
