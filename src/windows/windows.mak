@@ -1,5 +1,7 @@
-# nasm for Windows has a "w" at the end
+# nasm for Windows (but not cygwin) has a "w" at the end
+ifndef COMPILESYSTEM_CYGWIN
 ASM = @nasmw
+endif
 
 # only Windows specific output files and rules
 # the first two targets generate the prefix.h header
@@ -67,4 +69,9 @@ CURPATH = ./
 ifneq ($(WINUI),)
 CFLAGS+= -DWINUI=1
 include src/ui/ui.mak
+endif
+
+# if we are not using x86drc.o, we should be
+ifndef X86_MIPS3_DRC
+COREOBJS += $(OBJ)/x86drc.o
 endif
