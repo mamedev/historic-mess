@@ -218,7 +218,7 @@ int YM2608_num(const struct MachineSound *msound) { return ((struct YM2608interf
 int YM2610_clock(const struct MachineSound *msound) { return ((struct YM2610interface*)msound->sound_interface)->baseclock; }
 int YM2610_num(const struct MachineSound *msound) { return ((struct YM2610interface*)msound->sound_interface)->num; }
 #endif
-#if (HAS_YM2612)
+#if (HAS_YM2612 || HAS_YM3438)
 int YM2612_clock(const struct MachineSound *msound) { return ((struct YM2612interface*)msound->sound_interface)->baseclock; }
 int YM2612_num(const struct MachineSound *msound) { return ((struct YM2612interface*)msound->sound_interface)->num; }
 #endif
@@ -232,6 +232,10 @@ int TIA_clock(const struct MachineSound *msound) { return ((struct TIAinterface*
 #if (HAS_YM3812)
 int YM3812_clock(const struct MachineSound *msound) { return ((struct YM3812interface*)msound->sound_interface)->baseclock; }
 int YM3812_num(const struct MachineSound *msound) { return ((struct YM3812interface*)msound->sound_interface)->num; }
+#endif
+#if (HAS_YMZ280B)
+int YMZ280B_clock(const struct MachineSound *msound) { return ((struct YMZ280Binterface*)msound->sound_interface)->baseclock[0]; }
+int YMZ280B_num(const struct MachineSound *msound) { return ((struct YMZ280Binterface*)msound->sound_interface)->num; }
 #endif
 #if (HAS_VLM5030)
 int VLM5030_clock(const struct MachineSound *msound) { return ((struct VLM5030interface*)msound->sound_interface)->baseclock; }
@@ -283,6 +287,9 @@ int speaker_num(const struct MachineSound *msound) { return ((struct Speaker_int
 #endif
 #if (HAS_WAVE)
 int wave_num(const struct MachineSound *msound) { return ((struct Wave_interface*)msound->sound_interface)->num; }
+#endif
+#if (HAS_SAA1099)
+int saa1099_num(const struct MachineSound *msound) { return ((struct saa1099_interface*)msound->sound_interface)->numchips; }
 #endif
 
 struct snd_interface sndintf[] =
@@ -461,6 +468,18 @@ struct snd_interface sndintf[] =
 		YM3812_clock,
 		YM3812_sh_start,
 		YM3812_sh_stop,
+		0,
+		0
+	},
+#endif
+#if (HAS_YMZ280B)
+    {
+		SOUND_YMZ280B,
+		"YMZ280B",
+		YMZ280B_num,
+		YMZ280B_clock,
+		YMZ280B_sh_start,
+		YMZ280B_sh_stop,
 		0,
 		0
 	},
@@ -785,6 +804,18 @@ struct snd_interface sndintf[] =
 		wave_sh_start,
 		wave_sh_stop,
 		wave_sh_update,
+		0
+	},
+#endif
+#if (HAS_SAA1099)
+	{
+		SOUND_SAA1099,
+		"SAA1099",
+		saa1099_num,
+		0,
+		saa1099_sh_start,
+		saa1099_sh_stop,
+		0,
 		0
 	},
 #endif

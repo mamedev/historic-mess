@@ -1,3 +1,4 @@
+
 /*
  * Configuration routines.
  *
@@ -69,10 +70,11 @@ void decompose_rom_sample_path (char *rompath, char *samplepath);
 extern char *nvdir, *hidir, *cfgdir, *inpdir, *stadir, *memcarddir;
 extern char *artworkdir, *screenshotdir, *alternate_name;
 
+extern char *cheatdir;
+
 #ifdef MESS
 /* path to the CRC database files */
 char *crcdir;
-char *cheatdir;
 #endif
 
 /* from video.c, for centering tweaked modes */
@@ -408,6 +410,7 @@ void parse_cmdline (int argc, char **argv, int game_index)
 	options.flipy     = get_bool ("config", "flipy",     NULL, 0);
 
 	/* read sound configuration */
+
 	soundcard           = get_int  ("config", "soundcard",  NULL, -1);
 	options.use_emulated_ym3812 = !get_bool ("config", "ym3812opl",  NULL,  0);
 	options.samplerate = get_int  ("config", "samplerate", "sr", 22050);
@@ -428,7 +431,15 @@ void parse_cmdline (int argc, char **argv, int game_index)
 	/* misc configuration */
 	options.cheat      = get_bool ("config", "cheat", NULL, 0);
 	options.mame_debug = get_bool ("config", "debug", NULL, 0);
-	cheatfile  = get_string ("config", "cheatfile", "cf", "CHEAT.DAT");    /* JCK 980917 */
+
+	/* Steph 20000730 - Now all stuff is in function InitCheat in src/cheat.c */
+	#ifndef MESS
+	tmpstr = get_string ("config", "cheatfile", "cf", "CHEAT.DAT");
+	#else
+	tmpstr = get_string ("config", "cheatfile", "cf", "CHEAT.CDB");
+	#endif
+	cheatfile = malloc(strlen(tmpstr) + 1);
+	strcpy(cheatfile,tmpstr);
 
  	#ifndef MESS
  	history_filename  = get_string ("config", "historyfile", NULL, "HISTORY.DAT");    /* JCK 980917 */
@@ -449,10 +460,15 @@ void parse_cmdline (int argc, char **argv, int game_index)
 	memcarddir = get_string ("directory", "memcard", NULL, "MEMCARD");
 	stadir     = get_string ("directory", "sta",     NULL, "STA");
 	artworkdir = get_string ("directory", "artwork", NULL, "ARTWORK");
- 	#ifdef MESS
+
+ 	#ifndef MESS
+		cheatdir = get_string ("directory", "cheat", NULL, ".");
+ 	#else
 		crcdir = get_string ("directory", "crc", NULL, "CRC");
 		cheatdir = get_string ("directory", "cheat", NULL, "CHEAT");
  	#endif
+
+	logerror("cheatfile = %s - cheatdir = %s\n",cheatfile,cheatdir);
 
 	tmpstr = get_string ("config", "language", NULL, "english");
 	options.language_file = osd_fopen(0,tmpstr,OSD_FILETYPE_LANGUAGE,0);

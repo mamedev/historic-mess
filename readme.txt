@@ -1,4 +1,5 @@
 
+
                  M.A.M.E.  -  Multiple Arcade Machine Emulator
           Copyright (C) 1997-2000 by Nicola Salmoria and The MAME Team
 

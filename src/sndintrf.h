@@ -45,6 +45,9 @@ struct MachineSound
 #if (HAS_YM2413)
 #include "sound/2413intf.h"
 #endif
+#if (HAS_YMZ280B)
+#include "sound/ymz280b.h"
+#endif
 #if (HAS_SN76477)
 #include "sound/sn76477.h"
 #endif
@@ -120,6 +123,9 @@ struct MachineSound
 #if (HAS_WAVE)
 #include "sound/wave.h"
 #endif
+#if (HAS_SAA1099)
+#include "sound/saa1099.h"
+#endif
 
 
 enum
@@ -169,6 +175,9 @@ enum
 #endif
 #if (HAS_YM3526)
 	SOUND_YM3526,	/* 100% YM3812 compatible, less features */
+#endif
+#if (HAS_YMZ280B)
+	SOUND_YMZ280B,
 #endif
 #if (HAS_Y8950)
 	SOUND_Y8950,	/* YM3526 compatible with delta-T ADPCM */
@@ -250,6 +259,9 @@ enum
 #endif
 #if (HAS_WAVE)
 	SOUND_WAVE,
+#endif
+#if (HAS_SAA1099)
+	SOUND_SAA1099,
 #endif
     SOUND_COUNT
 };
