@@ -12,6 +12,8 @@
 #include "osd_cpu.h"
 
 /*#define TI990_9_ID	0*//* early implementation, used in a few real-world applications, 1974 */
+                          /* very similar to mapper-less 990/10 and tms9900, but the Load process */
+                          /* is different */
                           /* ("ti990/9" is likely to be a nickname) */
 #define TI990_10_ID		1 /* original multi-chip implementation for minicomputer systems, 1975 */
 /*#define TI990_12_ID		2*//* multi-chip implementation, faster than 990/10. huge instruction set */
@@ -36,32 +38,16 @@
 
 
 enum {
-	TMS9900_PC=1, TMS9900_WP, TMS9900_STATUS, TMS9900_IR
-#ifdef MAME_DEBUG
-	,
+	TMS9900_PC=1, TMS9900_WP, TMS9900_STATUS, TMS9900_IR,
 	TMS9900_R0, TMS9900_R1, TMS9900_R2, TMS9900_R3,
 	TMS9900_R4, TMS9900_R5, TMS9900_R6, TMS9900_R7,
 	TMS9900_R8, TMS9900_R9, TMS9900_R10, TMS9900_R11,
 	TMS9900_R12, TMS9900_R13, TMS9900_R14, TMS9900_R15
-#endif
 };
 
 #if (HAS_TI990_10)
 
-extern	int ti990_10_ICount;
-
-extern void ti990_10_init(void);
-extern void ti990_10_reset(void *param);
-extern int ti990_10_execute(int cycles);
-extern void ti990_10_exit(void);
-extern unsigned ti990_10_get_context(void *dst);
-extern void ti990_10_set_context(void *src);
-extern unsigned ti990_10_get_reg(int regnum);
-extern void ti990_10_set_reg(int regnum, unsigned val);
-extern void ti990_10_set_irq_line(int irqline, int state);
-extern void ti990_10_set_irq_callback(int (*callback)(int irqline));
-extern const char *ti990_10_info(void *context, int regnum);
-extern unsigned ti990_10_dasm(char *buffer, unsigned pc);
+extern void ti990_10_get_info(UINT32 state, union cpuinfo *info);
 
 /*
 	structure with the parameters ti990_10_reset wants.
@@ -80,30 +66,17 @@ typedef struct ti990_10reset_param
 extern READ16_HANDLER(ti990_10_internal_r);
 
 /* CRU accessor for the mapper registers (R12 base 0x1fa0) */
-extern READ16_HANDLER(ti990_10_mapper_cru_r);
-extern WRITE16_HANDLER(ti990_10_mapper_cru_w);
+extern READ_HANDLER(ti990_10_mapper_cru_r);
+extern WRITE_HANDLER(ti990_10_mapper_cru_w);
 /* CRU accessor for the error interrupt register (R12 base 0x1fc0) */
-extern READ16_HANDLER(ti990_10_eir_cru_r);
-extern WRITE16_HANDLER(ti990_10_eir_cru_w);
+extern READ_HANDLER(ti990_10_eir_cru_r);
+extern WRITE_HANDLER(ti990_10_eir_cru_w);
 
 #endif
 
 #if (HAS_TMS9900)
 
-extern	int tms9900_ICount;
-
-extern void tms9900_init(void);
-extern void tms9900_reset(void *param);
-extern int tms9900_execute(int cycles);
-extern void tms9900_exit(void);
-extern unsigned tms9900_get_context(void *dst);
-extern void tms9900_set_context(void *src);
-extern unsigned tms9900_get_reg(int regnum);
-extern void tms9900_set_reg(int regnum, unsigned val);
-extern void tms9900_set_irq_line(int irqline, int state);
-extern void tms9900_set_irq_callback(int (*callback)(int irqline));
-extern const char *tms9900_info(void *context, int regnum);
-extern unsigned tms9900_dasm(char *buffer, unsigned pc);
+extern void tms9900_get_info(UINT32 state, union cpuinfo *info);
 
 /*
 	structure with optional parameters for tms9900_reset.
@@ -117,20 +90,7 @@ typedef struct tms9900reset_param
 
 #if (HAS_TMS9940)
 
-extern	int tms9940_ICount;
-
-extern void tms9940_init(void);
-extern void tms9940_reset(void *param);
-extern int tms9940_execute(int cycles);
-extern void tms9940_exit(void);
-extern unsigned tms9940_get_context(void *dst);
-extern void tms9940_set_context(void *src);
-extern unsigned tms9940_get_reg(int regnum);
-extern void tms9940_set_reg(int regnum, unsigned val);
-extern void tms9940_set_irq_line(int irqline, int state);
-extern void tms9940_set_irq_callback(int (*callback)(int irqline));
-extern const char *tms9940_info(void *context, int regnum);
-extern unsigned tms9940_dasm(char *buffer, unsigned pc);
+extern void tms9940_get_info(UINT32 state, union cpuinfo *info);
 
 /*
 	structure with optional parameters for tms9940_reset.
@@ -144,20 +104,7 @@ typedef struct tms9940reset_param
 
 #if (HAS_TMS9980)
 
-extern	int tms9980a_ICount;
-
-extern void tms9980a_init(void);
-extern void tms9980a_reset(void *param);
-extern int tms9980a_execute(int cycles);
-extern void tms9980a_exit(void);
-extern unsigned tms9980a_get_context(void *dst);
-extern void tms9980a_set_context(void *src);
-extern unsigned tms9980a_get_reg(int regnum);
-extern void tms9980a_set_reg(int regnum, unsigned val);
-extern void tms9980a_set_irq_line(int irqline, int state);
-extern void tms9980a_set_irq_callback(int (*callback)(int irqline));
-extern const char *tms9980a_info(void *context, int regnum);
-extern unsigned tms9980a_dasm(char *buffer, unsigned pc);
+extern void tms9980a_get_info(UINT32 state, union cpuinfo *info);
 
 /*
 	structure with optional parameters for tms9980a_reset.
@@ -171,20 +118,7 @@ typedef struct tms9980areset_param
 
 #if (HAS_TMS9985)
 
-extern	int tms9985_ICount;
-
-extern void tms9985_init(void);
-extern void tms9985_reset(void *param);
-extern int tms9985_execute(int cycles);
-extern void tms9985_exit(void);
-extern unsigned tms9985_get_context(void *dst);
-extern void tms9985_set_context(void *src);
-extern unsigned tms9985_get_reg(int regnum);
-extern void tms9985_set_reg(int regnum, unsigned val);
-extern void tms9985_set_irq_line(int irqline, int state);
-extern void tms9985_set_irq_callback(int (*callback)(int irqline));
-extern const char *tms9985_info(void *context, int regnum);
-extern unsigned tms9985_dasm(char *buffer, unsigned pc);
+extern void tms9985_get_info(UINT32 state, union cpuinfo *info);
 
 /*
 	structure with optional parameters for tms9985_reset.
@@ -198,20 +132,7 @@ typedef struct tms9985reset_param
 
 #if (HAS_TMS9989)
 
-extern	int tms9989_ICount;
-
-extern void tms9989_init(void);
-extern void tms9989_reset(void *param);
-extern int tms9989_execute(int cycles);
-extern void tms9989_exit(void);
-extern unsigned tms9989_get_context(void *dst);
-extern void tms9989_set_context(void *src);
-extern unsigned tms9989_get_reg(int regnum);
-extern void tms9989_set_reg(int regnum, unsigned val);
-extern void tms9989_set_irq_line(int irqline, int state);
-extern void tms9989_set_irq_callback(int (*callback)(int irqline));
-extern const char *tms9989_info(void *context, int regnum);
-extern unsigned tms9989_dasm(char *buffer, unsigned pc);
+extern void tms9989_get_info(UINT32 state, union cpuinfo *info);
 
 /*
 	structure with optional parameters for tms9989_reset.
@@ -225,20 +146,7 @@ typedef struct tms9989reset_param
 
 #if (HAS_TMS9995)
 
-extern	int tms9995_ICount;
-
-extern void tms9995_init(void);
-extern void tms9995_reset(void *param);
-extern int tms9995_execute(int cycles);
-extern void tms9995_exit(void);
-extern unsigned tms9995_get_context(void *dst);
-extern void tms9995_set_context(void *src);
-extern unsigned tms9995_get_reg(int regnum);
-extern void tms9995_set_reg(int regnum, unsigned val);
-extern void tms9995_set_irq_line(int irqline, int state);
-extern void tms9995_set_irq_callback(int (*callback)(int irqline));
-extern const char *tms9995_info(void *context, int regnum);
-extern unsigned tms9995_dasm(char *buffer, unsigned pc);
+extern void tms9995_get_info(UINT32 state, union cpuinfo *info);
 
 /*
   structure with the parameters tms9995_reset wants.
@@ -266,22 +174,9 @@ extern WRITE_HANDLER(tms9995_internal2_w);
 
 #endif
 
-#if 0/*(HAS_TMS99000)*/
+#if (HAS_TMS99000)
 
-extern	int tms99000_ICount;
-
-extern void tms99000_init(void);
-extern void tms99000_reset(void *param);
-extern int tms99000_execute(int cycles);
-extern void tms99000_exit(void);
-extern unsigned tms99000_get_context(void *dst);
-extern void tms99000_set_context(void *src);
-extern unsigned tms99000_get_reg(int regnum);
-extern void tms99000_set_reg(int regnum, unsigned val);
-extern void tms99000_set_irq_line(int irqline, int state);
-extern void tms99000_set_irq_callback(int (*callback)(int irqline));
-extern const char *tms99000_info(void *context, int regnum);
-extern unsigned tms99000_dasm(char *buffer, unsigned pc);
+extern void tms99000_get_info(UINT32 state, union cpuinfo *info);
 
 /*
 	structure with optional parameters for tms99000_reset.
@@ -290,6 +185,34 @@ typedef struct tms99000reset_param
 {
 	void (*idle_callback)(int state);
 } tms99000reset_param;
+
+#endif
+
+#if (HAS_TMS99105A)
+
+extern void tms99105a_get_info(UINT32 state, union cpuinfo *info);
+
+/*
+	structure with optional parameters for tms99105a_reset.
+*/
+typedef struct tms99105areset_param
+{
+	void (*idle_callback)(int state);
+} tms99105areset_param;
+
+#endif
+
+#if (HAS_TMS99110A)
+
+extern void tms99110a_get_info(UINT32 state, union cpuinfo *info);
+
+/*
+	structure with optional parameters for tms99110a_reset.
+*/
+typedef struct tms99110areset_param
+{
+	void (*idle_callback)(int state);
+} tms99110areset_param;
 
 #endif
 
