@@ -39,8 +39,7 @@ extern struct rc_option sound_opts[];
 extern struct rc_option video_opts[];
 
 #ifdef MESS
-extern struct rc_option mess_opts[];
-void build_crc_database_filename(int game_index);
+#include "configms.h"
 #endif
 
 extern int frontend_help(char *gamename);
@@ -181,7 +180,7 @@ static struct rc_option opts[] = {
 	{ "debug_resolution", "dr", rc_string, &debugres, "auto", 0, 0, video_set_debugres, "set resolution for debugger window" },
 	{ "gamma", NULL, rc_float, &options.gamma, "1.0", 0.5, 2.0, NULL, "gamma correction"},
 	{ "brightness", "bright", rc_float, &options.brightness, "1.0", 0.5, 2.0, NULL, "brightness correction"},
-	{ "pause_brightness", "pb", rc_float, &options.pause_bright, "0.65", 0.5, 2.0, NULL, "additional pause brightness"},
+	{ "pause_brightness", NULL, rc_float, &options.pause_bright, "0.65", 0.5, 2.0, NULL, "additional pause brightness"},
 
 	/* vector */
 	{ "Mame CORE vector game options", NULL, rc_seperator, NULL, NULL, 0, 0, NULL, NULL },
