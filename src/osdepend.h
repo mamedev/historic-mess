@@ -10,12 +10,6 @@
 #define CLIB_DECL
 #endif
 
-/* TODO: this should be removed and put into a unix-specific header */
-/** suggested by  Scott Trent */
-#ifdef aix
-#include <sys/time.h>
-#endif
-
 #ifdef __LP64__
 #define FPTR long   /* 64bit: sizeof(void *) is sizeof(long)  */
 #else
@@ -108,8 +102,13 @@ void osd_save_snapshot(void);
   osd_start_audio_stream() and osd_stop_audio_stream() must return the number of
   samples (or couples of samples, when using stereo) required for next frame.
   This will be around Machine->sample_rate / Machine->drv->frames_per_second,
-  the code may adjust it at will to keep timing accurate and to maintain audio
-  and video in sync when using vsync.
+  the code may adjust it by SMALL AMOUNTS to keep timing accurate and to maintain
+  audio and video in sync when using vsync. Note that sound generation,
+  especially when DACs are involved, greatly depends on the samples per frame to
+  be roughly constant, so the returned value must always stay close to the
+  reference value of Machine->sample_rate / Machine->drv->frames_per_second.
+  Of course that value is not necessarily an integer so at least a +/- 1
+  adjustment is necessary to avoid drifting over time.
  */
 int osd_start_audio_stream(int stereo);
 int osd_update_audio_stream(INT16 *buffer);
@@ -149,7 +148,7 @@ int osd_is_key_pressed(int keycode);
   wait for the user to press a key and return its code. This function is not
   required to do anything, it is here so we can avoid bogging down multitasking
   systems while using the debugger. If you don't want to or can't support this
-  function you can just return KEYCODE_NONE.
+  function you can just return OSD_KEY_NONE.
 */
 int osd_wait_keypress(void);
 
@@ -322,5 +321,5 @@ int osd_dir_get_entry(void *dir, char *name, int namelength, int *is_dir);
 void osd_dir_close(void *dir);
 #endif
 
-#endif
 
+#endif
