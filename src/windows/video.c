@@ -199,6 +199,7 @@ struct rc_option video_opts[] =
 #else
 	{ "sleep", NULL, rc_bool, &allow_sleep, "1", 0, 0, NULL, "allow MESS to give back time to the system when it's not needed" },
 #endif
+	{ "rdtsc", NULL, rc_bool, &win_force_rdtsc, "0", 0, 0, NULL, "prefer RDTSC over QueryPerformanceCounter for timing" },
 	{ NULL,	NULL, rc_end, NULL, NULL, 0, 0,	NULL, NULL }
 };
 
@@ -605,13 +606,19 @@ static void throttle_speed(void)
 			if (allow_sleep && (!autoframeskip || frameskip == 0) &&
 				(target - curr) > (cycles_t)(ticks_per_sleep_msec * 1.1))
 			{
+				cycles_t next;
+
 				// keep track of how long we actually slept
 				Sleep(1);
-				ticks_per_sleep_msec = (ticks_per_sleep_msec * 0.90) + ((double)(osd_cycles() - curr) * 0.10);
+				next = osd_cycles();
+				ticks_per_sleep_msec = (ticks_per_sleep_msec * 0.90) + ((double)(next - curr) * 0.10);
+				curr = next;
 			}
-
-			// update the current time
-			curr = osd_cycles();
+			else
+			{
+				// update the current time
+				curr = osd_cycles();
+			}
 		}
 	}
 
