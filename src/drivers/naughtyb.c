@@ -122,7 +122,8 @@ void naughtyb_vh_screenrefresh(struct osd_bitmap *bitmap,int full_refresh);
 
 void pleiads_sound_control_a_w(int offset, int data);
 void pleiads_sound_control_b_w(int offset, int data);
-int pleiads_sh_start(const struct MachineSound *msound);
+int naughtyb_sh_start(const struct MachineSound *msound);
+int popflame_sh_start(const struct MachineSound *msound);
 void pleiads_sh_stop(void);
 void pleiads_sh_update(void);
 
@@ -130,7 +131,7 @@ static struct MemoryReadAddress readmem[] =
 {
 	{ 0x0000, 0x3fff, MRA_ROM },
 	{ 0x4000, 0x8fff, MRA_RAM },
-	{ 0xb000, 0xb7ff, input_port_0_r },     /* IN0 */
+    { 0xb000, 0xb7ff, input_port_0_r },     /* IN0 */
 	{ 0xb800, 0xbfff, input_port_1_r },     /* DSW */
 	{ -1 }  /* end of table */
 };
@@ -145,7 +146,7 @@ static struct MemoryWriteAddress writemem[] =
 	{ 0x9800, 0x9fff, MWA_RAM, &naughtyb_scrollreg },
 	{ 0xa000, 0xa7ff, pleiads_sound_control_a_w },
 	{ 0xa800, 0xafff, pleiads_sound_control_b_w },
-	{ -1 }  /* end of table */
+    { -1 }  /* end of table */
 };
 
 static struct MemoryWriteAddress popflame_writemem[] =
@@ -245,21 +246,33 @@ static struct GfxDecodeInfo gfxdecodeinfo[] =
 
 
 
-static struct CustomSound_interface custom_interface =
+static struct CustomSound_interface naughtyb_custom_interface =
 {
-	pleiads_sh_start,
+    naughtyb_sh_start,
+    pleiads_sh_stop,
+    pleiads_sh_update
+};
+
+static struct CustomSound_interface popflame_custom_interface =
+{
+	popflame_sh_start,
 	pleiads_sh_stop,
 	pleiads_sh_update
 };
 
-static struct TMS36XXinterface tms3617_interface =
+static struct TMS36XXinterface tms3615_interface =
 {
-	2,
-	{ 50,		50		},	/* mixing levels */
-	{ TMS3617,	TMS3617 },	/* TMS36xx subtypes */	/* WRONG it's a single 3615 */
-	{ 247,		247 	},	/* base clocks (one octave below A) */
-	/* and decay times of the six harmonic voices */
-	{ {0.5,0.5,0.5,0.5,0.5,0.5 }, {0.5,0.5,0.5,0.5,0.5,0.5} }
+	1,
+	{ 60		},	/* mixing level */
+	{ TMS3615	},	/* TMS36xx subtype */
+	{ 247		},	/* base clock (one octave below A) */
+	/*
+	 * Decay times of the voices; NOTE: it's unknown if
+	 * the the TMS3615 mixes more than one voice internally.
+	 * A wav taken from Pop Flamer sounds like there
+	 * are at least no 'odd' harmonics (5 1/3' and 2 2/3')
+     */
+	{ {0.33,0.33,0,0.33,0,0.33} }
 };
 
 
@@ -296,13 +309,13 @@ static struct MachineDriver machine_driver_naughtyb =
 	0,0,0,0,
 	{
 		{
-			SOUND_CUSTOM,
-			&custom_interface
+			SOUND_TMS36XX,
+			&tms3615_interface
 		},
 		{
-			SOUND_TMS36XX,
-			&tms3617_interface
-        }
+            SOUND_CUSTOM,
+			&naughtyb_custom_interface
+		}
     }
 };
 
@@ -339,14 +352,14 @@ static struct MachineDriver machine_driver_popflame =
 	0,0,0,0,
 	{
 		{
-			SOUND_CUSTOM,
-			&custom_interface
+			SOUND_TMS36XX,
+			&tms3615_interface
 		},
 		{
-			SOUND_TMS36XX,
-			&tms3617_interface
+            SOUND_CUSTOM,
+			&popflame_custom_interface
 		}
-	}
+    }
 };
 
 
@@ -481,6 +494,26 @@ ROM_START( popflama )
 	ROM_LOAD( "ic54",         0x0100, 0x0100, 0x236bc771 ) /* palette high bits */
 ROM_END
 
+ROM_START( popflamb )
+	ROM_REGION( 0x10000, REGION_CPU1 )		/* 64k for code */
+	ROM_LOAD( "ic86.bin",     0x0000, 0x1000, 0x06397a4b )
+	ROM_LOAD( "ic80.pop",     0x1000, 0x1000, 0xb77abf3d )
+	ROM_LOAD( "ic94.bin",     0x2000, 0x1000, 0xae5248ae )
+	ROM_LOAD( "ic100.pop",    0x3000, 0x1000, 0xf9f2343b )
+
+	ROM_REGION( 0x2000, REGION_GFX1 | REGIONFLAG_DISPOSE )
+	ROM_LOAD( "ic13.pop",     0x0000, 0x1000, 0x2367131e )
+	ROM_LOAD( "ic3.pop",      0x1000, 0x1000, 0xdeed0a8b )
+
+	ROM_REGION( 0x2000, REGION_GFX2 | REGIONFLAG_DISPOSE )
+	ROM_LOAD( "ic29.pop",     0x0000, 0x1000, 0x7b54f60f )
+	ROM_LOAD( "ic38.pop",     0x1000, 0x1000, 0xdd2d9601 )
+
+	ROM_REGION( 0x0200, REGION_PROMS )
+	ROM_LOAD( "ic53",         0x0000, 0x0100, 0x6e66057f ) /* palette low bits */
+	ROM_LOAD( "ic54",         0x0100, 0x0100, 0x236bc771 ) /* palette high bits */
+ROM_END
+
 
 
 GAMEX( 1982, naughtyb, 0,        naughtyb, naughtyb, 0, ROT90, "Jaleco", "Naughty Boy", GAME_NO_COCKTAIL )
@@ -488,3 +521,4 @@ GAMEX( 1982, naughtya, naughtyb, naughtyb, naughtyb, 0, ROT90, "bootleg", "Naugh
 GAMEX( 1982, naughtyc, naughtyb, naughtyb, naughtyb, 0, ROT90, "Jaleco (Cinematronics license)", "Naughty Boy (Cinematronics)", GAME_NO_COCKTAIL )
 GAMEX( 1982, popflame, 0,        popflame, naughtyb, 0, ROT90, "Jaleco", "Pop Flamer (set 1)", GAME_NO_COCKTAIL )
 GAMEX( 1982, popflama, popflame, popflame, naughtyb, 0, ROT90, "Jaleco", "Pop Flamer (set 2)", GAME_NO_COCKTAIL )
+GAMEX( 1982, popflamb, popflame, popflame, naughtyb, 0, ROT90, "Jaleco (Stern License)", "Pop Flamer (set 3)", GAME_NO_COCKTAIL )
