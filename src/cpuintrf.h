@@ -5,6 +5,10 @@
 #include "memory.h"
 #include "timer.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* The old system is obsolete and no longer supported by the core */
 #define NEW_INTERRUPT_SYSTEM    1
 
@@ -193,6 +197,9 @@ enum {
 #ifndef HAS_T11
 #define HAS_T11 		0
 #endif
+#ifndef HAS_F8
+#define HAS_F8			0
+#endif
 #ifndef HAS_S2650
 #define HAS_S2650		0
 #endif
@@ -241,9 +248,6 @@ enum {
 #ifndef HAS_ADSP2105
 #define HAS_ADSP2105	0
 #endif
-#ifndef HAS_ADSP2105
-#define HAS_ADSP2105	0
-#endif
 #ifndef HAS_MIPS
 #define HAS_MIPS		0
 #endif
@@ -253,9 +257,13 @@ enum {
 #ifndef HAS_ARM
 #define HAS_ARM 		0
 #endif
-#ifndef HAS_ARM
-#define HAS_ARM 		0
+#ifndef HAS_G65816
+#define HAS_G65816		0
 #endif
+#ifndef HAS_SPC700
+#define HAS_SPC700		0
+#endif
+
 
 /* ASG 971222 -- added this generic structure */
 struct cpu_interface
@@ -290,6 +298,9 @@ struct cpu_interface
 	int no_int, irq_int, nmi_int;
 	mem_read_handler memory_read;
 	mem_write_handler memory_write;
+	mem_read_handler internal_read;
+	mem_write_handler internal_write;
+	unsigned pgm_memory_base;
 	void (*set_op_base)(int pc);
 	int address_shift;
 	unsigned address_bits, endianess, align_unit, max_inst_len;
@@ -331,11 +342,6 @@ void cpu_set_sp(unsigned val);
 unsigned cpu_get_context(void *context);
 /* Set the active CPUs context */
 void cpu_set_context(void *context);
-
-/* Get a pointer to the active CPUs cycle count lookup table */
-void *cpu_get_cycle_table(int which);
-/* Override a pointer to the active CPUs cycle count lookup table */
-void cpu_set_cycle_tbl(int which, void *new_table);
 
 /* Get a pointer to the active CPUs cycle count lookup table */
 void *cpu_get_cycle_table(int which);
@@ -433,9 +439,6 @@ void cpu_irq_line_vector_w(int cpunum, int irqline, int vector);
 /* use this function to install a driver callback for IRQ acknowledge */
 void cpu_set_irq_callback(int cpunum, int (*callback)(int));
 
-/* use this function to install a driver callback for IRQ acknowledge */
-void cpu_set_irq_callback(int cpunum, int (*callback)(int));
-
 /* use these in your write memory/port handles to set an IRQ vector */
 /* offset corresponds to the irq line number here */
 WRITE_HANDLER( cpu_0_irq_line_vector_w );
@@ -456,6 +459,7 @@ WRITE_HANDLER( interrupt_enable_w );
 WRITE_HANDLER( interrupt_vector_w );
 int interrupt(void);
 int nmi_interrupt(void);
+#if (HAS_M68000 || HAS_M68010 || HAS_M68020 || HAS_M68EC020)
 int m68_level1_irq(void);
 int m68_level2_irq(void);
 int m68_level3_irq(void);
@@ -463,6 +467,7 @@ int m68_level4_irq(void);
 int m68_level5_irq(void);
 int m68_level6_irq(void);
 int m68_level7_irq(void);
+#endif
 int ignore_interrupt(void);
 
 /* CPU context access */
@@ -605,5 +610,9 @@ typedef struct {
 #define Z80_INT_IEO     0x02    /* interrupt disable mask(IEO)  */
 
 #define Z80_VECTOR(device,state) (((device)<<8)|(state))
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif	/* CPUINTRF_H */

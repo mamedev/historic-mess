@@ -14,10 +14,8 @@
 #include "ui_text.h"
 
 #ifdef MESS
-  #include "mess.h"
+#include "../mess/mess.h"
 #endif
-
-extern int mame_debug;
 
 extern int bitmap_dirty;	/* set by osd_clearbitmap() */
 
@@ -29,8 +27,6 @@ extern unsigned int coinlockedout[COIN_COUNTERS];
 
 /* MARTINEZ.F 990207 Memory Card */
 #ifndef MESS
-
-#ifndef MESS
 #ifndef TINY_COMPILE
 int 		memcard_menu(struct osd_bitmap *bitmap, int);
 extern int	mcd_action;
@@ -41,13 +37,12 @@ extern int	memcard_manager;
 #endif
 #endif
 
-
 extern int neogeo_memcard_load(int);
 extern void neogeo_memcard_save(void);
 extern void neogeo_memcard_eject(void);
 extern int neogeo_memcard_create(int);
 /* MARTINEZ.F 990207 Memory Card End */
-#endif
+
 
 
 static int setup_selected;
@@ -58,7 +53,7 @@ static int trueorientation;
 static int orientation_count;
 
 
-static void switch_ui_orientation(void)
+void switch_ui_orientation(void)
 {
 	if (orientation_count == 0)
 	{
@@ -70,7 +65,7 @@ static void switch_ui_orientation(void)
 	orientation_count++;
 }
 
-static void switch_true_orientation(void)
+void switch_true_orientation(void)
 {
 	orientation_count--;
 
@@ -360,9 +355,19 @@ struct GfxElement *builduifont(void)
 		{ 0*8, 1*8, 2*8, 3*8, 4*8, 5*8, 6*8, 7*8 },
 		8*8 /* every char takes 8 consecutive bytes */
 	};
+	static struct GfxLayout fontlayout6x16 =
+	{
+		6,16,	/* 6*8 characters */
+		256,	/* 256 characters */
+		1,	/* 1 bit per pixel */
+		{ 0 },
+		{ 0, 1, 2, 3, 4, 5, 6, 7 }, /* straightforward layout */
+		{ 0*8,0*8, 1*8,1*8, 2*8,2*8, 3*8,3*8, 4*8,4*8, 5*8,5*8, 6*8,6*8, 7*8,7*8 },
+		8*8 /* every char takes 8 consecutive bytes */
+	};
 	static struct GfxLayout fontlayout12x16 =
 	{
-		12,16,	/* 6*8 characters */
+		12,16,	/* 12*16 characters */
 		256,	/* 256 characters */
 		1,	/* 1 bit per pixel */
 		{ 0 },
@@ -380,9 +385,18 @@ struct GfxElement *builduifont(void)
 	if ((Machine->drv->video_attributes & VIDEO_PIXEL_ASPECT_RATIO_MASK)
 			== VIDEO_PIXEL_ASPECT_RATIO_1_2)
 	{
-		font = decodegfx(fontdata6x8,&fontlayout12x8);
-		Machine->uifontwidth = 12;
-		Machine->uifontheight = 8;
+		if (Machine->gamedrv->flags & ORIENTATION_SWAP_XY)
+		{
+			font = decodegfx(fontdata6x8,&fontlayout6x16);
+			Machine->uifontwidth = 6;
+			Machine->uifontheight = 16;
+		}
+		else
+		{
+			font = decodegfx(fontdata6x8,&fontlayout12x8);
+			Machine->uifontwidth = 12;
+			Machine->uifontheight = 8;
+		}
 	}
 	else if (Machine->uiwidth >= 420 && Machine->uiheight >= 420)
 	{
@@ -776,9 +790,18 @@ void ui_displaymenu(struct osd_bitmap *bitmap,const char **items,const char **su
 	{
 		if (arrowize_subitem & 1)
 		{
+			int sublen;
+
+			len = strlen(items[selected]);
+
 			dt[curr_dt].text = leftarrow;
 			dt[curr_dt].color = UI_COLOR_NORMAL;
-			dt[curr_dt].x = leftoffs + Machine->uifontwidth * (maxlen-2 - strlen(subitems[selected])) - Machine->uifontwidth/2 - 1;
+
+			sublen = strlen(subitems[selected]);
+			if (sublen > maxlen-5-len)
+				sublen = strlen("...");
+
+			dt[curr_dt].x = leftoffs + Machine->uifontwidth * (maxlen-2 - sublen) - Machine->uifontwidth/2 - 1;
 			dt[curr_dt].y = topoffs + (3*i+1)*Machine->uifontheight/2;
 			curr_dt++;
 		}
@@ -938,7 +961,6 @@ void ui_displaymessagewindow(struct osd_bitmap *bitmap,const char *text)
 
 #ifndef MESS
 #ifndef TINY_COMPILE
-#ifndef MESS
 extern int no_of_tiles;
 void NeoMVSDrawGfx(unsigned char **line,const struct GfxElement *gfx,
 		unsigned int code,unsigned int color,int flipx,int flipy,int sx,int sy,
@@ -947,7 +969,6 @@ void NeoMVSDrawGfx16(unsigned char **line,const struct GfxElement *gfx,
 		unsigned int code,unsigned int color,int flipx,int flipy,int sx,int sy,
 		int zx,int zy,const struct rectangle *clip);
 extern struct GameDriver driver_neogeo;
-#endif
 #endif
 #endif
 
@@ -972,12 +993,10 @@ static void showcharset(struct osd_bitmap *bitmap)
 
 #ifndef MESS
 #ifndef TINY_COMPILE
-#ifndef MESS
 	if (Machine->gamedrv->clone_of == &driver_neogeo ||
 			(Machine->gamedrv->clone_of &&
 				Machine->gamedrv->clone_of->clone_of == &driver_neogeo))
 		game_is_neogeo=1;
-#endif
 #endif
 #endif
 
@@ -1103,7 +1122,6 @@ static void showcharset(struct osd_bitmap *bitmap)
 			}
 #ifndef MESS
 #ifndef TINY_COMPILE
-#ifndef MESS
 			else	/* neogeo sprite tiles */
 			{
 				struct rectangle clip;
@@ -1141,7 +1159,6 @@ static void showcharset(struct osd_bitmap *bitmap)
 					lastdrawn = i+firstdrawn;
 				}
 			}
-#endif
 #endif
 #endif
 
@@ -2088,7 +2105,6 @@ int showcopyright(struct osd_bitmap *bitmap)
 	do
 	{
 		update_video_and_audio();
-		osd_poll_joysticks();
 		if (input_ui_pressed(IPT_UI_CANCEL))
 		{
 			setup_selected = 0;////
@@ -2337,9 +2353,15 @@ int showgamewarnings(struct osd_bitmap *bitmap)
 			int foundworking;
 
 			if (Machine->gamedrv->flags & GAME_NOT_WORKING)
+			{
 				strcpy(buf, ui_getstring (UI_brokengame));
+				strcat(buf, "\n");
+			}
 			if (Machine->gamedrv->flags & GAME_UNEMULATED_PROTECTION)
+			{
 				strcat(buf, ui_getstring (UI_brokenprotection));
+				strcat(buf, "\n");
+			}
 
 			if (Machine->gamedrv->clone_of && !(Machine->gamedrv->clone_of->flags & NOT_A_DRIVER))
 				maindrv = Machine->gamedrv->clone_of;
@@ -2377,7 +2399,6 @@ int showgamewarnings(struct osd_bitmap *bitmap)
 		do
 		{
 			update_video_and_audio();
-			osd_poll_joysticks();
 			if (input_ui_pressed(IPT_UI_CANCEL))
 				return 1;
 			if (code_pressed_memory(KEYCODE_O) ||
@@ -2398,14 +2419,12 @@ int showgamewarnings(struct osd_bitmap *bitmap)
 	while (displaygameinfo(bitmap,0) == 1)
 	{
 		update_video_and_audio();
-		osd_poll_joysticks();
 	}
 
 	#ifdef MESS
 	while (displayimageinfo(bitmap,0) == 1)
 	{
 		update_video_and_audio();
-		osd_poll_joysticks();
 	}
 	#endif
 
@@ -2682,7 +2701,6 @@ static int displayhistory (struct osd_bitmap *bitmap, int selected)
 
 #ifndef MESS
 #ifndef TINY_COMPILE
-#ifndef MESS
 int memcard_menu(struct osd_bitmap *bitmap, int selection)
 {
 	int sel;
@@ -2803,7 +2821,6 @@ int memcard_menu(struct osd_bitmap *bitmap, int selection)
 }
 #endif
 #endif
-#endif
 
 
 #ifndef MESS
@@ -2877,14 +2894,12 @@ static void setup_menu_init(void)
 
 #ifndef MESS
 #ifndef TINY_COMPILE
-#ifndef MESS
 	if (Machine->gamedrv->clone_of == &driver_neogeo ||
 			(Machine->gamedrv->clone_of &&
 				Machine->gamedrv->clone_of->clone_of == &driver_neogeo))
 	{
 		menu_item[menu_total] = ui_getstring (UI_memorycard); menu_action[menu_total++] = UI_MEMCARD;
 	}
-#endif
 #endif
 #endif
 
@@ -2950,11 +2965,9 @@ static int setup_menu(struct osd_bitmap *bitmap, int selected)
 				break;
 #ifndef MESS
 #ifndef TINY_COMPILE
-#ifndef MESS
 			case UI_MEMCARD:
 				res = memcard_menu(bitmap, sel >> SEL_BITS);
 				break;
-#endif
 #endif
 #endif
 		}
@@ -3280,17 +3293,20 @@ static void onscrd_init(void)
 
 	item = 0;
 
-	onscrd_fnc[item] = onscrd_volume;
-	onscrd_arg[item] = 0;
-	item++;
-
-	for (ch = 0;ch < MIXER_MAX_CHANNELS;ch++)
+	if (Machine->sample_rate)
 	{
-		if (mixer_get_name(ch) != 0)
+		onscrd_fnc[item] = onscrd_volume;
+		onscrd_arg[item] = 0;
+		item++;
+
+		for (ch = 0;ch < MIXER_MAX_CHANNELS;ch++)
 		{
-			onscrd_fnc[item] = onscrd_mixervol;
-			onscrd_arg[item] = ch;
-			item++;
+			if (mixer_get_name(ch) != 0)
+			{
+				onscrd_fnc[item] = onscrd_mixervol;
+				onscrd_arg[item] = ch;
+				item++;
+			}
 		}
 	}
 
@@ -3391,16 +3407,17 @@ static void displaymessage(struct osd_bitmap *bitmap,const char *text)
 	displaytext(bitmap,dt,0,0);
 }
 
+
 static char messagetext[80];
 static int messagecounter;
 
 void CLIB_DECL usrintf_showmessage(const char *text,...)
 {
-    va_list arg;
-    va_start(arg,text);
-    vsprintf(messagetext,text,arg);
-    va_end(arg);
-    messagecounter = 2 * Machine->drv->frames_per_second;
+	va_list arg;
+	va_start(arg,text);
+	vsprintf(messagetext,text,arg);
+	va_end(arg);
+	messagecounter = 2 * Machine->drv->frames_per_second;
 }
 
 void CLIB_DECL usrintf_showmessage_secs(int seconds, const char *text,...)
@@ -3411,6 +3428,7 @@ void CLIB_DECL usrintf_showmessage_secs(int seconds, const char *text,...)
 	va_end(arg);
 	messagecounter = seconds * Machine->drv->frames_per_second;
 }
+
 
 
 int handle_user_interface(struct osd_bitmap *bitmap)
@@ -3638,7 +3656,6 @@ draw_screen(bitmap_dirty);
 			if (messagecounter > 0) displaymessage(bitmap, messagetext);
 
 			update_video_and_audio();
-			osd_poll_joysticks();
 		}
 
 		if (code_pressed(KEYCODE_LSHIFT) || code_pressed(KEYCODE_RSHIFT))
