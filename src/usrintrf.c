@@ -14,7 +14,6 @@
 
 #ifdef MESS
   #include "mess/mess.h"
-  image_details image;
 #endif
 
 extern int mame_debug;
@@ -115,10 +114,10 @@ struct GfxElement *builduifont(void)
 	static unsigned char fontdata6x8[] =
 	{
 		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+		0x7c,0x80,0x98,0x90,0x80,0xbc,0x80,0x7c,0xf8,0x04,0x64,0x44,0x04,0xf4,0x04,0xf8,
+		0x7c,0x80,0x98,0x88,0x80,0xbc,0x80,0x7c,0xf8,0x04,0x64,0x24,0x04,0xf4,0x04,0xf8,
+		0x7c,0x80,0x88,0x98,0x80,0xbc,0x80,0x7c,0xf8,0x04,0x24,0x64,0x04,0xf4,0x04,0xf8,
+		0x7c,0x80,0x90,0x98,0x80,0xbc,0x80,0x7c,0xf8,0x04,0x44,0x64,0x04,0xf4,0x04,0xf8,
 		0x30,0x48,0x84,0xb4,0xb4,0x84,0x48,0x30,0x30,0x48,0x84,0x84,0x84,0x84,0x48,0x30,
 		0x00,0xfc,0x84,0x8c,0xd4,0xa4,0xfc,0x00,0x00,0xfc,0x84,0x84,0x84,0x84,0xfc,0x00,
 		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x30,0x68,0x78,0x78,0x30,0x00,0x00,
@@ -180,7 +179,7 @@ struct GfxElement *builduifont(void)
 		0x00,0x68,0xb0,0x00,0x00,0x00,0x00,0x00,0x20,0x50,0x20,0x50,0xa8,0x50,0x00,0x00,
 	};
 #if 0	   /* HJB 990215 unused!? */
-    static unsigned char fontdata8x8[] =
+	static unsigned char fontdata8x8[] =
 	{
 		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
@@ -248,49 +247,49 @@ struct GfxElement *builduifont(void)
 		0x00,0x00,0x76,0xDC,0x00,0x00,0x00,0x00,0x10,0x28,0x10,0x54,0xAA,0x44,0x00,0x00,
 	};
 #endif
-    static struct GfxLayout fontlayout6x8 =
+	static struct GfxLayout fontlayout6x8 =
 	{
 		6,8,	/* 6*8 characters */
-		128,    /* 128 characters */
+		128,	/* 128 characters */
 		1,	/* 1 bit per pixel */
 		{ 0 },
-		{ 0, 1, 2, 3, 4, 5, 6, 7 },	/* straightforward layout */
+		{ 0, 1, 2, 3, 4, 5, 6, 7 }, /* straightforward layout */
 		{ 0*8, 1*8, 2*8, 3*8, 4*8, 5*8, 6*8, 7*8 },
-		8*8	/* every char takes 8 consecutive bytes */
+		8*8 /* every char takes 8 consecutive bytes */
 	};
 	static struct GfxLayout fontlayout12x8 =
 	{
 		12,8,	/* 12*8 characters */
-		128,    /* 128 characters */
+		128,	/* 128 characters */
 		1,	/* 1 bit per pixel */
 		{ 0 },
-		{ 0,0, 1,1, 2,2, 3,3, 4,4, 5,5, 6,6, 7,7 },	/* straightforward layout */
+		{ 0,0, 1,1, 2,2, 3,3, 4,4, 5,5, 6,6, 7,7 }, /* straightforward layout */
 		{ 0*8, 1*8, 2*8, 3*8, 4*8, 5*8, 6*8, 7*8 },
-		8*8	/* every char takes 8 consecutive bytes */
+		8*8 /* every char takes 8 consecutive bytes */
 	};
 	static struct GfxLayout fontlayout12x16 =
 	{
 		12,16,	/* 6*8 characters */
-		128,    /* 128 characters */
+		128,	/* 128 characters */
 		1,	/* 1 bit per pixel */
 		{ 0 },
-		{ 0,0, 1,1, 2,2, 3,3, 4,4, 5,5, 6,6, 7,7 },	/* straightforward layout */
+		{ 0,0, 1,1, 2,2, 3,3, 4,4, 5,5, 6,6, 7,7 }, /* straightforward layout */
 		{ 0*8,0*8, 1*8,1*8, 2*8,2*8, 3*8,3*8, 4*8,4*8, 5*8,5*8, 6*8,6*8, 7*8,7*8 },
-		8*8	/* every char takes 8 consecutive bytes */
+		8*8 /* every char takes 8 consecutive bytes */
 	};
 #if 0	/* HJB 990215 unused!? */
-    static struct GfxLayout fontlayout8x8 =
+	static struct GfxLayout fontlayout8x8 =
 	{
 		8,8,	/* 8*8 characters */
-		128,    /* 128 characters */
+		128,	/* 128 characters */
 		1,	/* 1 bit per pixel */
 		{ 0 },
-		{ 0, 1, 2, 3, 4, 5, 6, 7 },	/* straightforward layout */
+		{ 0, 1, 2, 3, 4, 5, 6, 7 }, /* straightforward layout */
 		{ 0*8, 1*8, 2*8, 3*8, 4*8, 5*8, 6*8, 7*8 },
-		8*8	/* every char takes 8 consecutive bytes */
+		8*8 /* every char takes 8 consecutive bytes */
 	};
 #endif
-    struct GfxElement *font;
+	struct GfxElement *font;
 	static unsigned short colortable[2*2];	/* ASG 980209 */
 	int trueorientation;
 
@@ -430,7 +429,6 @@ static void ui_text_ex(const char* buf_begin, const char* buf_end, int x, int y,
 {
 	int trueorientation;
 
-
 	/* hack: force the display into standard orientation to avoid */
 	/* rotating the text */
 	trueorientation = Machine->orientation;
@@ -478,7 +476,7 @@ INLINE void drawhline_norotate(int x, int w, int y, unsigned short color)
 {
 	if (Machine->scrbitmap->depth == 16)
 	{
-        int i;
+		int i;
 		for (i = x; i < x+w; i++)
 			*(unsigned short *)&Machine->scrbitmap->line[y][i*2] = color;
 	}
@@ -551,7 +549,7 @@ INLINE void drawvline(int x, int y, int h, unsigned short color)
 }
 
 
-static void drawbox(int leftx,int topy,int width,int height)
+void ui_drawbox(int leftx,int topy,int width,int height)
 {
 	int y;
 	unsigned short black,white;
@@ -572,7 +570,7 @@ static void drawbox(int leftx,int topy,int width,int height)
 	drawhline(leftx,width,topy+height-1,white);
 	drawvline(leftx,		topy,height,white);
 	drawvline(leftx+width-1,topy,height,white);
-    for (y = topy+1;y < topy+height-1;y++)
+	for (y = topy+1;y < topy+height-1;y++)
 		drawhline(leftx+1,width-2,y,black);
 }
 
@@ -594,26 +592,18 @@ static void drawbar(int leftx,int topy,int width,int height,int percentage,int d
 	black = Machine->uifont->colortable[0];
 	white = Machine->uifont->colortable[1];
 
-    for (y = topy;y < topy + height/8;y++)
-	{
-		drawpixel(leftx,			y, white);
-		drawpixel(leftx+1,			y, white);
-		if (default_percentage)
-			drawpixel(leftx+width*default_percentage/100-1,	y, white);
-		drawpixel(leftx+width-2,	y, white);
-		drawpixel(leftx+width-1,	y, white);
-	}
+	for (y = topy;y < topy + height/8;y++)
+		drawpixel(leftx+(width-1)*default_percentage/100, y, white);
+
+	drawhline(leftx,width,topy+height/8,white);
+
 	for (y = topy+height/8;y < topy+height-height/8;y++)
-		drawhline(leftx,width*percentage/100,y,white);
+		drawhline(leftx,1+(width-1)*percentage/100,y,white);
+
+	drawhline(leftx,width,topy+height-height/8-1,white);
+
 	for (y = topy+height-height/8;y < topy + height;y++)
-	{
-		drawpixel(leftx,			y, white);
-		drawpixel(leftx+1,			y, white);
-		if (default_percentage)
-			drawpixel(leftx+width*default_percentage/100-1,	y, white);
-		drawpixel(leftx+width-2,	y, white);
-		drawpixel(leftx+width-1,	y, white);
-	}
+		drawpixel(leftx+(width-1)*default_percentage/100, y, white);
 }
 
 /* Extract one line from a multiline buffer */
@@ -698,13 +688,13 @@ static void ui_multitext_ex(const char* begin, const char* end, unsigned max, in
 /* Display a multiline string with box */
 static void ui_multitextbox_ex(const char* begin, const char* end, unsigned max, int x, int y, int dx, int dy, int color)
 {
-	drawbox(x,y,dx,dy);
+	ui_drawbox(x,y,dx,dy);
 	x += Machine->uifontwidth/2;
 	y += Machine->uifontheight/2;
 	ui_multitext_ex(begin,end,max,x,y,color);
 }
 
-static void displaymenu(const char **items,const char **subitems,char *flag,int selected,int arrowize_subitem)
+void ui_displaymenu(const char **items,const char **subitems,char *flag,int selected,int arrowize_subitem)
 {
 	struct DisplayText dt[256];
 	int curr_dt;
@@ -747,7 +737,7 @@ static void displaymenu(const char **items,const char **subitems,char *flag,int 
 	topoffs = (Machine->uiheight - (3 * visible + 1) * Machine->uifontheight / 2) / 2;
 
 	/* black background */
-	drawbox(leftoffs,topoffs,maxlen * Machine->uifontwidth,(3 * visible + 1) * Machine->uifontheight / 2);
+	ui_drawbox(leftoffs,topoffs,maxlen * Machine->uifontwidth,(3 * visible + 1) * Machine->uifontheight / 2);
 
 	selected_long = 0;
 	curr_dt = 0;
@@ -793,10 +783,7 @@ static void displaymenu(const char **items,const char **subitems,char *flag,int 
 					dt[curr_dt].text = subitems[item];
 				}
 				/* If this item is flagged, draw it in inverse print */
-				if (flag && flag[item])
-					dt[curr_dt].color = DT_COLOR_YELLOW;
-				else
-					dt[curr_dt].color = DT_COLOR_WHITE;
+				dt[curr_dt].color = (flag && flag[item]) ? DT_COLOR_YELLOW : DT_COLOR_WHITE;
 				dt[curr_dt].x = leftoffs + Machine->uifontwidth * (maxlen-1-sublen) - Machine->uifontwidth/2;
 				dt[curr_dt].y = topoffs + (3*i+1)*Machine->uifontheight/2;
 				curr_dt++;
@@ -873,7 +860,7 @@ static void displaymenu(const char **items,const char **subitems,char *flag,int 
 }
 
 
-static void displaymessagewindow(const char *text)
+void ui_displaymessagewindow(const char *text)
 {
 	struct DisplayText dt[256];
 	int curr_dt;
@@ -881,7 +868,7 @@ static void displaymessagewindow(const char *text)
 	int i,len,maxlen,lines;
 	char textcopy[2048];
 	int leftoffs,topoffs;
-	int	maxcols,maxrows;
+	int maxcols,maxrows;
 
 	maxcols = (Machine->uiwidth / Machine->uifontwidth) - 1;
 	maxrows = (2 * Machine->uiheight - Machine->uifontheight) / (3 * Machine->uifontheight);
@@ -937,7 +924,7 @@ static void displaymessagewindow(const char *text)
 	topoffs = (Machine->uiheight - (3 * lines + 1) * Machine->uifontheight / 2) / 2;
 
 	/* black background */
-	drawbox(leftoffs,topoffs,maxlen * Machine->uifontwidth,(3 * lines + 1) * Machine->uifontheight / 2);
+	ui_drawbox(leftoffs,topoffs,maxlen * Machine->uifontwidth,(3 * lines + 1) * Machine->uifontheight / 2);
 
 	curr_dt = 0;
 	c = textcopy;
@@ -954,7 +941,7 @@ static void displaymessagewindow(const char *text)
 			c++;
 		}
 
-		if (*c2 == '\t')	/* center text */
+		if (*c2 == '\t')    /* center text */
 		{
 			c2++;
 			dt[curr_dt].x = (Machine->uiwidth - Machine->uifontwidth * (c - c2)) / 2;
@@ -982,10 +969,10 @@ static void displaymessagewindow(const char *text)
 extern int no_of_tiles;
 void NeoMVSDrawGfx(unsigned char **line,const struct GfxElement *gfx,
 		unsigned int code,unsigned int color,int flipx,int flipy,int sx,int sy,
-        int zx,int zy,const struct rectangle *clip);
+		int zx,int zy,const struct rectangle *clip);
 void NeoMVSDrawGfx16(unsigned char **line,const struct GfxElement *gfx,
 		unsigned int code,unsigned int color,int flipx,int flipy,int sx,int sy,
-        int zx,int zy,const struct rectangle *clip);
+		int zx,int zy,const struct rectangle *clip);
 extern struct GameDriver driver_neogeo;
 #endif
 #endif
@@ -1481,19 +1468,13 @@ static int setdipswitches(int selected)
 		}
 	}
 
-	displaymenu(menu_item,menu_subitem,flag,sel,arrowize);
+	ui_displaymenu(menu_item,menu_subitem,flag,sel,arrowize);
 
 	if (input_ui_pressed_repeat(IPT_UI_DOWN,8))
-	{
-		if (sel < total - 1) sel++;
-		else sel = 0;
-	}
+		sel = (sel + 1) % total;
 
 	if (input_ui_pressed_repeat(IPT_UI_UP,8))
-	{
-		if (sel > 0) sel--;
-		else sel = total - 1;
-	}
+		sel = (sel + total - 1) % total;
 
 	if (input_ui_pressed_repeat(IPT_UI_RIGHT,8))
 	{
@@ -1568,10 +1549,11 @@ static int setdipswitches(int selected)
 /* it's used byt setdefkeysettings, setdefjoysettings, setkeysettings, setjoysettings */
 static int record_first_insert = 1;
 
+static char menu_subitem_buffer[400][96];
+
 static int setdefcodesettings(int selected)
 {
 	const char *menu_item[400];
-	char menu_subitem_buffer[400][96];
 	const char *menu_subitem[400];
 	struct ipd *entry[400];
 	char flag[400];
@@ -1620,14 +1602,14 @@ static int setdefcodesettings(int selected)
 		flag[i] = 0;
 	}
 
-	if (sel > 255)	/* are we waiting for a new key? */
+	if (sel > SEL_MASK)   /* are we waiting for a new key? */
 	{
 		int ret;
 
-		menu_subitem[sel & 0xff] = "    ";
-		displaymenu(menu_item,menu_subitem,flag,sel & 0xff,3);
+		menu_subitem[sel & SEL_MASK] = "    ";
+		ui_displaymenu(menu_item,menu_subitem,flag,sel & SEL_MASK,3);
 
-		ret = seq_read_async(&entry[sel & 0xff]->seq,record_first_insert);
+		ret = seq_read_async(&entry[sel & SEL_MASK]->seq,record_first_insert);
 
 		if (ret >= 0)
 		{
@@ -1650,19 +1632,17 @@ static int setdefcodesettings(int selected)
 	}
 
 
-	displaymenu(menu_item,menu_subitem,flag,sel,0);
+	ui_displaymenu(menu_item,menu_subitem,flag,sel,0);
 
 	if (input_ui_pressed_repeat(IPT_UI_DOWN,8))
 	{
-		if (sel < total - 1) sel++;
-		else sel = 0;
+		sel = (sel + 1) % total;
 		record_first_insert = 1;
 	}
 
 	if (input_ui_pressed_repeat(IPT_UI_UP,8))
 	{
-		if (sel > 0) sel--;
-		else sel = total - 1;
+		sel = (sel + total - 1) % total;
 		record_first_insert = 1;
 	}
 
@@ -1673,7 +1653,7 @@ static int setdefcodesettings(int selected)
 		{
 			seq_read_async_start();
 
-			sel |= 0x100;	/* we'll ask for a key */
+			sel |= 1 << SEL_BITS;	/* we'll ask for a key */
 
 			/* tell updatescreen() to clean after us (in case the window changes size) */
 			need_to_clear_bitmap = 1;
@@ -1702,7 +1682,6 @@ static int setdefcodesettings(int selected)
 static int setcodesettings(int selected)
 {
 	const char *menu_item[400];
-	char menu_subitem_buffer[400][96];
 	const char *menu_subitem[400];
 	struct InputPort *entry[400];
 	char flag[400];
@@ -1756,14 +1735,14 @@ static int setcodesettings(int selected)
 			menu_subitem[i] = 0;	/* no subitem */
 	}
 
-	if (sel > 255)	/* are we waiting for a new key? */
+	if (sel > SEL_MASK)   /* are we waiting for a new key? */
 	{
 		int ret;
 
-		menu_subitem[sel & 0xff] = "    ";
-		displaymenu(menu_item,menu_subitem,flag,sel & 0xff,3);
+		menu_subitem[sel & SEL_MASK] = "    ";
+		ui_displaymenu(menu_item,menu_subitem,flag,sel & SEL_MASK,3);
 
-		ret = seq_read_async(&entry[sel & 0xff]->seq,record_first_insert);
+		ret = seq_read_async(&entry[sel & SEL_MASK]->seq,record_first_insert);
 
 		if (ret >= 0)
 		{
@@ -1785,19 +1764,17 @@ static int setcodesettings(int selected)
 	}
 
 
-	displaymenu(menu_item,menu_subitem,flag,sel,0);
+	ui_displaymenu(menu_item,menu_subitem,flag,sel,0);
 
 	if (input_ui_pressed_repeat(IPT_UI_DOWN,8))
 	{
-		if (sel < total - 1) sel++;
-		else sel = 0;
+		sel = (sel + 1) % total;
 		record_first_insert = 1;
 	}
 
 	if (input_ui_pressed_repeat(IPT_UI_UP,8))
 	{
-		if (sel > 0) sel--;
-		else sel = total - 1;
+		sel = (sel + total - 1) % total;
 		record_first_insert = 1;
 	}
 
@@ -1808,7 +1785,7 @@ static int setcodesettings(int selected)
 		{
 			seq_read_async_start();
 
-			sel |= 0x100;	/* we'll ask for a key */
+			sel |= 1 << SEL_BITS;	/* we'll ask for a key */
 
 			/* tell updatescreen() to clean after us (in case the window changes size) */
 			need_to_clear_bitmap = 1;
@@ -1849,7 +1826,7 @@ static int calibratejoysticks(int selected)
 		strcpy (buf, "");
 	}
 
-	if (sel > 255) /* Waiting for the user to acknowledge joystick movement */
+	if (sel > SEL_MASK) /* Waiting for the user to acknowledge joystick movement */
 	{
 		if (input_ui_pressed(IPT_UI_CANCEL))
 		{
@@ -1862,7 +1839,7 @@ static int calibratejoysticks(int selected)
 			sel &= 0xff;
 		}
 
-		displaymessagewindow(buf);
+		ui_displaymessagewindow(buf);
 	}
 	else
 	{
@@ -1877,8 +1854,8 @@ static int calibratejoysticks(int selected)
 		else
 		{
 			strcpy (buf, msg);
-			displaymessagewindow(buf);
-			sel |= 0x100;
+			ui_displaymessagewindow(buf);
+			sel |= 1 << SEL_BITS;
 		}
 	}
 
@@ -1984,19 +1961,13 @@ static int settraksettings(int selected)
 		else menu_subitem[i] = 0;	/* no subitem */
 	}
 
-	displaymenu(menu_item,menu_subitem,0,sel,arrowize);
+	ui_displaymenu(menu_item,menu_subitem,0,sel,arrowize);
 
 	if (input_ui_pressed_repeat(IPT_UI_DOWN,8))
-	{
-		if (sel < total2 - 1) sel++;
-		else sel = 0;
-	}
+		sel = (sel + 1) % total2;
 
 	if (input_ui_pressed_repeat(IPT_UI_UP,8))
-	{
-		if (sel > 0) sel--;
-		else sel = total2 - 1;
-	}
+		sel = (sel + total2 - 1) % total2;
 
 	if (input_ui_pressed_repeat(IPT_UI_LEFT,8))
 	{
@@ -2084,6 +2055,7 @@ static int settraksettings(int selected)
 	return sel + 1;
 }
 
+#ifndef MESS
 static int mame_stats(int selected)
 {
 	char temp[10];
@@ -2127,7 +2099,7 @@ static int mame_stats(int selected)
 		/* menu system, use the normal menu keys */
 		strcat(buf,"\n\t\x1a Return to Main Menu \x1b");
 
-		displaymessagewindow(buf);
+		ui_displaymessagewindow(buf);
 
 		if (input_ui_pressed(IPT_UI_SELECT))
 			sel = -1;
@@ -2147,6 +2119,7 @@ static int mame_stats(int selected)
 
 	return sel + 1;
 }
+#endif
 
 int showcopyright(void)
 {
@@ -2161,7 +2134,7 @@ int showcopyright(void)
 			"PRESS ESC.\n\n"
 			"Otherwise, type OK to continue",
 			Machine->gamedrv->description);
-	displaymessagewindow(buf);
+	ui_displaymessagewindow(buf);
 
 	setup_selected = -1;////
 	done = 0;
@@ -2306,15 +2279,15 @@ static int displaygameinfo(int selected)
 		/* startup info, print MAME version and ask for any key */
 
 		#ifndef MESS
-		strcat(buf,"\n\tMAME ");	/* \t means that the line will be centered */
+		strcat(buf,"\n\tMAME ");    /* \t means that the line will be centered */
 		#else
-		strcat(buf,"\n\tMESS ");	/* \t means that the line will be centered */
- 		#endif
+		strcat(buf,"\n\tMESS ");    /* \t means that the line will be centered */
+		#endif
 
 		strcat(buf,build_version);
 		strcat(buf,"\n\tPress any key");
-		drawbox(0,0,Machine->uiwidth,Machine->uiheight);
-		displaymessagewindow(buf);
+		ui_drawbox(0,0,Machine->uiwidth,Machine->uiheight);
+		ui_displaymessagewindow(buf);
 
 		sel = 0;
 		if (code_read_async() != CODE_NONE)
@@ -2325,7 +2298,7 @@ static int displaygameinfo(int selected)
 		/* menu system, use the normal menu keys */
 		strcat(buf,"\n\t\x1a Return to Main Menu \x1b");
 
-		displaymessagewindow(buf);
+		ui_displaymessagewindow(buf);
 
 		if (input_ui_pressed(IPT_UI_SELECT))
 			sel = -1;
@@ -2345,67 +2318,6 @@ static int displaygameinfo(int selected)
 
 	return sel + 1;
 }
-
-
-#ifdef MESS
-static int displayimageinfo(int selected)
-{
-	char buf[2048], *dst = buf;
-	const struct IODevice *dev = Machine->gamedrv->dev;
-	int id, sel = selected - 1;
-
-	dst += sprintf(dst,"%s\n\n",Machine->gamedrv->description);
-
-	while (dev->type)
-	{
-		dst += sprintf(dst,"%d %s:\n", device_count(dev->type), device_typename(dev->type));
-		for (id = 0; id < device_count(dev->type); id++)
-			dst += sprintf(dst,"%s\n", device_filename(dev->type,id));
-		dev++;
-    }
-
-/* image stuff removed for now */
-
-    if (sel == -1)
-	{
-		/* startup info, print MAME version and ask for any key */
-
-
-		strcat(buf,"\n\tPress any key to Begin");
-		drawbox(0,0,Machine->uiwidth,Machine->uiheight);
-		displaymessagewindow(buf);
-
-		sel = 0;
-		if (code_read_async() != KEYCODE_NONE ||
-				code_read_async() != JOYCODE_NONE)
-			sel = -1;
-	}
-	else
-	{
-		/* menu system, use the normal menu keys */
-		strcat(buf,"\n\t\x1a Return to Main Menu \x1b");
-
-		displaymessagewindow(buf);
-
-		if (input_ui_pressed(IPT_UI_SELECT))
-			sel = -1;
-
-		if (input_ui_pressed(IPT_UI_CANCEL))
-			sel = -1;
-
-		if (input_ui_pressed(IPT_UI_CONFIGURE))
-			sel = -2;
-	}
-
-	if (sel == -1 || sel == -2)
-	{
-		/* tell updatescreen() to clean after us */
-		need_to_clear_bitmap = 1;
-	}
-
-	return sel + 1;
-}
-#endif
 
 
 int showgamewarnings(void)
@@ -2462,7 +2374,7 @@ int showgamewarnings(void)
 			#ifdef MESS
 			strcpy(buf,"THIS SYSTEM DOESN'T WORK PROPERLY");
 			#else
-            strcpy(buf,"THIS GAME DOESN'T WORK PROPERLY");
+			strcpy(buf,"THIS GAME DOESN'T WORK PROPERLY");
 			#endif
 
 			if (Machine->gamedrv->clone_of && !(Machine->gamedrv->clone_of->flags & NOT_A_DRIVER))
@@ -2490,7 +2402,7 @@ int showgamewarnings(void)
 
 		strcat(buf,"\n\nType OK to continue");
 
-		displaymessagewindow(buf);
+		ui_displaymessagewindow(buf);
 
 		done = 0;
 		do
@@ -2604,7 +2516,7 @@ static void display_scroll_message (int *scroll, int width, int height, char *bu
 	leftoffs = (Machine->uiwidth - Machine->uifontwidth * (width + 1)) / 2;
 	if (leftoffs < 0) leftoffs = 0;
 	topoffs = (Machine->uiheight - (3 * height + 1) * Machine->uifontheight / 2) / 2;
-	drawbox(leftoffs,topoffs,(width + 1) * Machine->uifontwidth,(3 * height + 1) * Machine->uifontheight / 2);
+	ui_drawbox(leftoffs,topoffs,(width + 1) * Machine->uifontwidth,(3 * height + 1) * Machine->uifontheight / 2);
 
 	buflines = count_lines_in_buffer (buf);
 	if (first > 0)
@@ -2667,7 +2579,7 @@ static void display_scroll_message (int *scroll, int width, int height, char *bu
 		if (*buf == '\n')
 			buf++;
 
-		if (*copystart == '\t')	/* center text */
+		if (*copystart == '\t') /* center text */
 		{
 			copystart++;
 			dt[curr_dt].x = (Machine->uiwidth - Machine->uifontwidth * (copy - copystart)) / 2;
@@ -2707,7 +2619,7 @@ static int displayhistory (int selected)
 	#endif
 	static int scroll = 0;
 	static char *buf = 0;
-	int	maxcols,maxrows;
+	int maxcols,maxrows;
 	int sel;
 
 
@@ -2744,7 +2656,7 @@ static int displayhistory (int selected)
 		if (buf)
 			display_scroll_message (&scroll, maxcols, maxrows, buf);
 		else
-			displaymessagewindow (msg);
+			ui_displaymessagewindow (msg);
 
 		if ((scroll > 0) && input_ui_pressed_repeat(IPT_UI_UP,4))
 		{
@@ -2788,7 +2700,7 @@ static int displayhistory (int selected)
 
 #ifndef NEOFREE
 #ifndef TINY_COMPILE
-int	memcard_menu(int selection)
+int memcard_menu(int selection)
 {
 	int sel;
 	int menutotal = 0;
@@ -2828,13 +2740,13 @@ int	memcard_menu(int selection)
 		default:
 			msg = "\nDAMN!! Internal Error!\n\n";
 		}
-		displaymessagewindow(msg);
+		ui_displaymessagewindow(msg);
 		if (input_ui_pressed(IPT_UI_SELECT))
 			mcd_action = 0;
 	}
 	else
 	{
-		displaymenu(menuitem,0,0,sel,0);
+		ui_displaymenu(menuitem,0,0,sel,0);
 
 		if (input_ui_pressed_repeat(IPT_UI_RIGHT,8))
 			mcd_number = (mcd_number + 1) % 1000;
@@ -2909,8 +2821,8 @@ enum { UI_SWITCH = 0,UI_DEFCODE,UI_CODE,UI_ANALOG,UI_CALIBRATE,
 		UI_CHEAT,UI_RESET,UI_MEMCARD,UI_EXIT };
 #else
 enum { UI_SWITCH = 0,UI_DEFCODE,UI_CODE,UI_ANALOG,UI_CALIBRATE,
-		UI_STATS,UI_GAMEINFO, UI_IMAGEINFO, UI_HISTORY,
-		UI_CHEAT,UI_RESET,UI_MEMCARD,UI_EXIT };
+		UI_GAMEINFO, UI_IMAGEINFO,UI_FILEMANAGER,UI_TAPECONTROL,
+		UI_HISTORY,UI_CHEAT,UI_RESET,UI_MEMCARD,UI_EXIT };
 #endif
 
 
@@ -2960,13 +2872,15 @@ static void setup_menu_init(void)
 		menu_item[menu_total] = "Calibrate Joysticks"; menu_action[menu_total++] = UI_CALIBRATE;
 	}
 
-	menu_item[menu_total] = "Bookkeeping Info"; menu_action[menu_total++] = UI_STATS;
 	#ifndef MESS
+	menu_item[menu_total] = "Bookkeeping Info"; menu_action[menu_total++] = UI_STATS;
 	menu_item[menu_total] = "Game Information"; menu_action[menu_total++] = UI_GAMEINFO;
 	menu_item[menu_total] = "Game History"; menu_action[menu_total++] = UI_HISTORY;
 	#else
 	menu_item[menu_total] = "Machine Information"; menu_action[menu_total++] = UI_GAMEINFO;
 	menu_item[menu_total] = "Image Information"; menu_action[menu_total++] = UI_IMAGEINFO;
+	menu_item[menu_total] = "File Manager"; menu_action[menu_total++] = UI_FILEMANAGER;
+	menu_item[menu_total] = "Tape Control"; menu_action[menu_total++] = UI_TAPECONTROL;
 	menu_item[menu_total] = "Machine Usage & History"; menu_action[menu_total++] = UI_HISTORY;
 	#endif
 
@@ -3007,132 +2921,154 @@ static int setup_menu(int selected)
 		sel = menu_lastselected;
 	else sel = selected - 1;
 
-	if (sel > 0xff)
+	if (sel > SEL_MASK)
 	{
-		switch (menu_action[sel & 0xff])
+		switch (menu_action[sel & SEL_MASK])
 		{
 			case UI_SWITCH:
-				res = setdipswitches(sel >> 8);
+				res = setdipswitches(sel >> SEL_BITS);
 				if (res == -1)
 				{
 					menu_lastselected = sel;
 					sel = -1;
 				}
 				else
-					sel = (sel & 0xff) | (res << 8);
+					sel = (sel & SEL_MASK) | (res << SEL_BITS);
 				break;
 
 			case UI_DEFCODE:
-				res = setdefcodesettings(sel >> 8);
+				res = setdefcodesettings(sel >> SEL_BITS);
 				if (res == -1)
 				{
 					menu_lastselected = sel;
 					sel = -1;
 				}
 				else
-					sel = (sel & 0xff) | (res << 8);
+					sel = (sel & SEL_MASK) | (res << SEL_BITS);
 				break;
 
 			case UI_CODE:
-				res = setcodesettings(sel >> 8);
+				res = setcodesettings(sel >> SEL_BITS);
 				if (res == -1)
 				{
 					menu_lastselected = sel;
 					sel = -1;
 				}
 				else
-					sel = (sel & 0xff) | (res << 8);
+					sel = (sel & SEL_MASK) | (res << SEL_BITS);
 				break;
 
 			case UI_ANALOG:
-				res = settraksettings(sel >> 8);
+				res = settraksettings(sel >> SEL_BITS);
 				if (res == -1)
 				{
 					menu_lastselected = sel;
 					sel = -1;
 				}
 				else
-					sel = (sel & 0xff) | (res << 8);
+					sel = (sel & SEL_MASK) | (res << SEL_BITS);
 				break;
 
 			case UI_CALIBRATE:
-				res = calibratejoysticks(sel >> 8);
+				res = calibratejoysticks(sel >> SEL_BITS);
 				if (res == -1)
 				{
 					menu_lastselected = sel;
 					sel = -1;
 				}
 				else
-					sel = (sel & 0xff) | (res << 8);
+					sel = (sel & SEL_MASK) | (res << SEL_BITS);
 				break;
 
 
+			#ifndef MESS
 			case UI_STATS:
-				res = mame_stats(sel >> 8);
+				res = mame_stats(sel >> SEL_BITS);
 				if (res == -1)
 				{
 					menu_lastselected = sel;
 					sel = -1;
 				}
 				else
-					sel = (sel & 0xff) | (res << 8);
+					sel = (sel & SEL_MASK) | (res << SEL_BITS);
 				break;
+			#endif
 
 			case UI_GAMEINFO:
-				res = displaygameinfo(sel >> 8);
+				res = displaygameinfo(sel >> SEL_BITS);
 				if (res == -1)
 				{
 					menu_lastselected = sel;
 					sel = -1;
 				}
 				else
-					sel = (sel & 0xff) | (res << 8);
+					sel = (sel & SEL_MASK) | (res << SEL_BITS);
 				break;
 
 			#ifdef MESS
 			case UI_IMAGEINFO:
-				res = displayimageinfo(sel >> 8);
+				res = displayimageinfo(sel >> SEL_BITS);
 				if (res == -1)
 				{
 					menu_lastselected = sel;
 					sel = -1;
 				}
 				else
-					sel = (sel & 0xff) | (res << 8);
+					sel = (sel & SEL_MASK) | (res << SEL_BITS);
+				break;
+			case UI_FILEMANAGER:
+				res = filemanager(sel >> SEL_BITS);
+				if (res == -1)
+				{
+					menu_lastselected = sel;
+					sel = -1;
+				}
+				else
+					sel = (sel & SEL_MASK) | (res << SEL_BITS);
+				break;
+			case UI_TAPECONTROL:
+				res = tapecontrol(sel >> SEL_BITS);
+				if (res == -1)
+				{
+					menu_lastselected = sel;
+					sel = -1;
+				}
+				else
+					sel = (sel & SEL_MASK) | (res << SEL_BITS);
 				break;
 			#endif
 
 			case UI_HISTORY:
-				res = displayhistory(sel >> 8);
+				res = displayhistory(sel >> SEL_BITS);
 				if (res == -1)
 				{
 					menu_lastselected = sel;
 					sel = -1;
 				}
 				else
-					sel = (sel & 0xff) | (res << 8);
+					sel = (sel & SEL_MASK) | (res << SEL_BITS);
 				break;
 
 			case UI_CHEAT:
 osd_sound_enable(0);
 while (seq_pressed(input_port_type_seq(IPT_UI_SELECT)))
-	osd_update_video_and_audio();     /* give time to the sound hardware to apply the volume change */
+	osd_update_video_and_audio();	  /* give time to the sound hardware to apply the volume change */
 				cheat_menu();
 osd_sound_enable(1);
-sel = sel & 0xff;
+sel = sel & SEL_MASK;
 				break;
 
 #ifndef NEOFREE
 #ifndef TINY_COMPILE
 			case UI_MEMCARD:
-				res = memcard_menu(sel >> 8);
+				res = memcard_menu(sel >> SEL_BITS);
 				if (res == -1)
 				{
 					menu_lastselected = sel;
 					sel = -1;
 				}
 				else
-					sel = (sel & 0xff) | (res << 8);
+					sel = (sel & SEL_MASK) | (res << SEL_BITS);
 				break;
 #endif
 #endif
@@ -3142,7 +3078,7 @@ sel = sel & 0xff;
 	}
 
 
-	displaymenu(menu_item,0,0,sel,0);
+	ui_displaymenu(menu_item,0,0,sel,0);
 
 	if (input_ui_pressed_repeat(IPT_UI_DOWN,8))
 		sel = (sel + 1) % menu_total;
@@ -3159,17 +3095,19 @@ sel = sel & 0xff;
 			case UI_CODE:
 			case UI_ANALOG:
 			case UI_CALIBRATE:
+			#ifndef MESS
 			case UI_STATS:
 			case UI_GAMEINFO:
-
-			#ifdef MESS
+			#else
+			case UI_GAMEINFO:
 			case UI_IMAGEINFO:
+			case UI_FILEMANAGER:
+			case UI_TAPECONTROL:
 			#endif
-
 			case UI_HISTORY:
 			case UI_CHEAT:
 			case UI_MEMCARD:
-				sel |= 0x100;
+				sel |= 1 << SEL_BITS;
 				/* tell updatescreen() to clean after us */
 				need_to_clear_bitmap = 1;
 				break;
@@ -3217,7 +3155,7 @@ static void displayosd(const char *text,int percentage,int default_percentage)
 
 	avail = (Machine->uiwidth / Machine->uifontwidth) * 19 / 20;
 
-	drawbox((Machine->uiwidth - Machine->uifontwidth * avail) / 2,
+	ui_drawbox((Machine->uiwidth - Machine->uifontwidth * avail) / 2,
 			(Machine->uiheight - 7*Machine->uifontheight/2),
 			avail * Machine->uifontwidth,
 			3*Machine->uifontheight);
@@ -3234,7 +3172,7 @@ static void displayosd(const char *text,int percentage,int default_percentage)
 	dt[0].color = DT_COLOR_WHITE;
 	dt[0].x = (Machine->uiwidth - Machine->uifontwidth * strlen(text)) / 2;
 	dt[0].y = (Machine->uiheight - 2*Machine->uifontheight) + 2;
-	dt[1].text = 0;	/* terminate array */
+	dt[1].text = 0; /* terminate array */
 	displaytext(dt,0,0);
 }
 
@@ -3488,7 +3426,7 @@ static void onscrd_init(void)
 		item++;
 	}
 
-    onscrd_total_items = item;
+	onscrd_total_items = item;
 }
 
 static int on_screen_display(int selected)
@@ -3503,9 +3441,9 @@ static int on_screen_display(int selected)
 
 	increment = 0;
 	if (input_ui_pressed_repeat(IPT_UI_LEFT,8))
-        increment = -1;
+		increment = -1;
 	if (input_ui_pressed_repeat(IPT_UI_RIGHT,8))
-        increment = 1;
+		increment = 1;
 	if (input_ui_pressed_repeat(IPT_UI_DOWN,8))
 		sel = (sel + 1) % onscrd_total_items;
 	if (input_ui_pressed_repeat(IPT_UI_UP,8))
@@ -3541,13 +3479,13 @@ static void displaymessage(const char *text)
 
 	if (Machine->uiwidth < Machine->uifontwidth * strlen(text))
 	{
-		displaymessagewindow(text);
+		ui_displaymessagewindow(text);
 		return;
 	}
 
 	avail = strlen(text)+2;
 
-	drawbox((Machine->uiwidth - Machine->uifontwidth * avail) / 2,
+	ui_drawbox((Machine->uiwidth - Machine->uifontwidth * avail) / 2,
 			Machine->uiheight - 3*Machine->uifontheight,
 			avail * Machine->uifontwidth,
 			2*Machine->uifontheight);
@@ -3556,7 +3494,7 @@ static void displaymessage(const char *text)
 	dt[0].color = DT_COLOR_WHITE;
 	dt[0].x = (Machine->uiwidth - Machine->uifontwidth * strlen(text)) / 2;
 	dt[0].y = Machine->uiheight - 5*Machine->uifontheight/2;
-	dt[1].text = 0;	/* terminate array */
+	dt[1].text = 0; /* terminate array */
 	displaytext(dt,0,0);
 }
 
@@ -3587,39 +3525,39 @@ int handle_user_interface(void)
 if (Machine->gamedrv->flags & GAME_COMPUTER)
 {
 	static int ui_active = 0, ui_toggle_key = 0;
- 	static int ui_display_count = 4 * 60;
+	static int ui_display_count = 4 * 60;
 
 	if( input_ui_pressed(IPT_UI_TOGGLE_UI) )
- 	{
+	{
 		if( !ui_toggle_key )
- 		{
+		{
 			ui_toggle_key = 1;
- 			ui_active = !ui_active;
- 			ui_display_count = 4 * 60;
- 			bitmap_dirty = 1;
-         }
- 	}
- 	else
- 	{
- 		ui_toggle_key = 0;
- 	}
+			ui_active = !ui_active;
+			ui_display_count = 4 * 60;
+			bitmap_dirty = 1;
+		 }
+	}
+	else
+	{
+		ui_toggle_key = 0;
+	}
 
- 	if( ui_active )
- 	{
- 		if( ui_display_count > 0 )
- 		{
- 			char text[] = "KBD: UI  (ScrLock)";
-  			int x, x0 = Machine->uiwidth - sizeof(text) * Machine->uifont->width - 2;
- 			int y0 = Machine->uiymin + Machine->uiheight - Machine->uifont->height - 2;
- 			for( x = 0; text[x]; x++ )
- 			{
- 				drawgfx(Machine->scrbitmap,
- 					Machine->uifont,text[x],0,0,0,
- 					x0+x*Machine->uifont->width,
- 					y0,0,TRANSPARENCY_NONE,0);
- 			}
- 			if( --ui_display_count == 0 )
- 				bitmap_dirty = 1;
+	if( ui_active )
+	{
+		if( ui_display_count > 0 )
+		{
+			char text[] = "KBD: UI  (ScrLock)";
+			int x, x0 = Machine->uiwidth - sizeof(text) * Machine->uifont->width - 2;
+			int y0 = Machine->uiymin + Machine->uiheight - Machine->uifont->height - 2;
+			for( x = 0; text[x]; x++ )
+			{
+				drawgfx(Machine->scrbitmap,
+					Machine->uifont,text[x],0,0,0,
+					x0+x*Machine->uifont->width,
+					y0,0,TRANSPARENCY_NONE,0);
+			}
+			if( --ui_display_count == 0 )
+				bitmap_dirty = 1;
 		}
 	}
 	else
@@ -3627,7 +3565,7 @@ if (Machine->gamedrv->flags & GAME_COMPUTER)
 		if( ui_display_count > 0 )
 		{
 			char text[] = "KBD: EMU (ScrLock)";
- 			int x, x0 = Machine->uiwidth - sizeof(text) * Machine->uifont->width - 2;
+			int x, x0 = Machine->uiwidth - sizeof(text) * Machine->uifont->width - 2;
 			int y0 = Machine->uiymin + Machine->uiheight - Machine->uifont->height - 2;
 			for( x = 0; text[x]; x++ )
 			{
@@ -3673,7 +3611,7 @@ if (Machine->gamedrv->flags & GAME_COMPUTER)
 		osd_selected = -1;
 		if (setup_selected != 0)
 		{
-			setup_selected = 0;	/* disable setup menu */
+			setup_selected = 0; /* disable setup menu */
 			/* tell updatescreen() to clean after us */
 			need_to_clear_bitmap = 1;
 		}
@@ -3790,7 +3728,7 @@ if (Machine->gamedrv->flags & GAME_COMPUTER)
 				osd_selected = -1;
 				if (setup_selected != 0)
 				{
-					setup_selected = 0;	/* disable setup menu */
+					setup_selected = 0; /* disable setup menu */
 					/* tell updatescreen() to clean after us */
 					need_to_clear_bitmap = 1;
 				}
@@ -3870,7 +3808,7 @@ void init_user_interface(void)
 {
 	extern int snapno;	/* in common.c */
 
-	snapno = 0;	/* reset snapshot counter */
+	snapno = 0; /* reset snapshot counter */
 
 	setup_menu_init();
 	setup_selected = 0;
@@ -3885,10 +3823,11 @@ void init_user_interface(void)
 
 int onscrd_active(void)
 {
-    return osd_selected;
+	return osd_selected;
 }
 
 int setup_active(void)
 {
-    return setup_selected;
+	return setup_selected;
 }
+

@@ -3,7 +3,7 @@
 ; January/February 2000
 ; Bernd Wiebelt <bernardo@mame.net>
 
-%assign SCANLINE_BRIGHTNESS 75			; this can be 0%, 50% or 75% brightness 
+%assign SCANLINE_BRIGHTNESS 0			; this can be 0%, 50% or 75% brightness
 
 [BITS 32]
 
@@ -13,15 +13,15 @@ extern _palette_16bit_lookup			; for 16 bit palettized mode
 
 [SECTION .data]
 halfbright15_mask:	dd 0x3def3def		; mask for halfbright (4-4-4)
-					dd 0x3def3def		
+					dd 0x3def3def
 halfbright16_mask:	dd 0x7bef7bef		; mask for halfbright (4-5-4)
-					dd 0x7bef7bef			 
-		
+					dd 0x7bef7bef
+
 
 [SECTION .text]
 
 ; Here comes the generic template for blitting
-; Note that the function names which are used by C are 
+; Note that the function names which are used by C are
 ; created on the fly by macro expansion. Cool feature.
 
 
@@ -49,7 +49,7 @@ dst_offset	equ 28						; offset to next framebuffer row
 	GLOBAL _asmblit_%1x_%2y_%3sl_%4bpp%5
 	_asmblit_%1x_%2y_%3sl_%4bpp%5:
 
-%assign MX  %1						; X-Stretch factor 
+%assign MX  %1						; X-Stretch factor
 %assign MY  %2						; Y-Stretch factor
 %assign SL  %3						; emulate scanlines
 %assign BPP %4						; bits per pixel (16bpp or 8bpp)
@@ -58,7 +58,7 @@ dst_offset	equ 28						; offset to next framebuffer row
 
 %if (%0 == 4)
 	%assign PALETTIZED 0
-%else			
+%else
 	%assign PALETTIZED 1
 %endif
 
@@ -69,7 +69,7 @@ dst_offset	equ 28						; offset to next framebuffer row
 	%assign REDUCED_SCANLINES 1
 %else
 	%assign REDUCED_SCANLINES 0
-%endif	
+%endif
 
 ; ***************************
 ; generic function call intro
@@ -92,7 +92,7 @@ mov esi, [ebp + src]
 mov edi, [ebp + dst]
 mov ecx, [ebp + width]
 
-align 16								; align the loop 
+align 16								; align the loop
 
 %%next_linesegment:
 
@@ -134,7 +134,7 @@ align 16								; align the loop
 		punpcklwd mm6, mm7
 
 		punpckldq mm0, mm2				; add dwords to quadwords
-		punpckldq mm4, mm6			
+		punpckldq mm4, mm6
 	%elif (MX == 2)
 		punpckldq mm0, mm1
 		punpckldq mm2, mm3
@@ -143,7 +143,7 @@ align 16								; align the loop
 	%endif
 %endif ; (PALETTIZED == 1)
 
-	
+
 %if (PALETTIZED == 0)					; stretch pixel non-palettized
 
 	movq mm0, [esi+0] 					; always read 16 bytes at once
@@ -193,7 +193,7 @@ align 16								; align the loop
 				paddw mm0, mm1
 				paddw mm4, mm5
 			%endif
-		%endif	
+		%endif
 		movq [fs:edi+edx], mm0
 		movq [fs:edi+edx+8], mm4
 	%endif
@@ -205,7 +205,7 @@ align 16								; align the loop
 	movq [fs:edi+16], mm4
 	movq [fs:edi+24], mm6
 	%if ((MY >= 2) && (SL == 0))
-		%if ((REDUCED_SCANLINES == 1) && (SCANLINE_BRIGHTNESS >= 50)) 
+		%if ((REDUCED_SCANLINES == 1) && (SCANLINE_BRIGHTNESS >= 50))
 			psrlq mm0, 1
 			psrlq mm2, 1
 			psrlq mm4, 1
@@ -241,7 +241,7 @@ align 16								; align the loop
 %endif 									; end case (MX == 2)
 
 ; ********************
-; next iteration 
+; next iteration
 ; ********************
 
 
@@ -253,7 +253,7 @@ align 16								; align the loop
 
 	mov eax, [ebp+src_offset]			; next src row
 	add [ebp+src], eax
-	
+
 	mov eax, [ebp+dst_offset]			; next dst row
 	imul eax, MY
 	add [ebp+dst], eax

@@ -21,11 +21,16 @@ struct DisplayText
 #define DT_COLOR_YELLOW 1
 #define DT_COLOR_RED 2
 
+#define SEL_BITS    12
+#define SEL_MASK	((1<<SEL_BITS)-1)
 
 struct GfxElement *builduifont(void);
 void pick_uifont_colors(void);
 void displaytext(const struct DisplayText *dt,int erase,int update_screen);
 void ui_text(const char *buf,int x,int y);
+void ui_drawbox(int leftx,int topy,int width,int height);
+void ui_displaymessagewindow(const char *text);
+void ui_displaymenu(const char **items,const char **subitems,char *flag,int selected,int arrowize_subitem);
 int showcopyright(void);
 int showgamewarnings(void);
 void set_ui_visarea (int xmin, int ymin, int xmax, int ymax);

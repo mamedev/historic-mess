@@ -153,6 +153,9 @@ int osd_is_key_pressed(int keycode);
 */
 int osd_wait_keypress(void);
 
+/* Code returned by the function osd_wait_keypress() if no key available */
+#define OSD_KEY_NONE 0xffffffff
+
 
 /******************************************************************************
 
@@ -310,4 +313,14 @@ int osd_net_game_init(void);
 int osd_net_game_exit(void);
 #endif /* MAME_NET */
 
+#ifdef MESS
+int osd_num_devices(void);
+const char *osd_get_device_name(int i);
+void osd_change_device(const char *vol);
+void *osd_dir_open(const char *mdirname, const char *filemask);
+int osd_dir_get_entry(void *dir, char *name, int namelength, int *is_dir);
+void osd_dir_close(void *dir);
 #endif
+
+#endif
+

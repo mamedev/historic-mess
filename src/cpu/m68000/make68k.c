@@ -67,6 +67,10 @@
  * 03.11.99 KENJO - VC++6.0 seems not to preserve EDI. Fixed "ABCD -(A0), -(A0)" crash / "roxr (A0)"-type shift crash
  * 13.11.99 KENJO - Fixed "NABC"
  *                  Now Win32 uses FASTCALL type call for interrupt callback
+ * 09.02.00  MJC  - Check CPU type before allowing 68010/68020 instructions
+ *                  remove routines for 5 non existant opcodes
+ * 05.03.00  MJC  - not command decrement A7 by 1 for bytes
+ * 10.03.00  MJC  - as did btst,cmpm and nbcd
  *---------------------------------------------------------------
  * Known Problems / Bugs
  *
@@ -75,6 +79,7 @@
  *
  * 68010
  * Instructions that are supervisor only as per 68000 spec.
+ * move address space not implemented.
  *
  * 68020
  * only long Bcc instruction implemented.
@@ -133,7 +138,7 @@ int 		DisOp;
  *
  */
 
-#define VERSION 	"0.17"
+#define VERSION 	"0.18"
 
 #define TRUE -1
 #define FALSE 0
@@ -621,6 +626,26 @@ void SetFlags(char Size,int Sreg,int Testreg,int SetX,int Delayed)
 
 	    if (SetX) fprintf(fp, "\t\t mov   [%s],edx\n",REG_X);
    	}
+}
+
+/******************/
+/* Check CPU Type */
+/******************/
+
+void CheckCPUType(int Minimum)
+{
+	fprintf(fp, "\t\t mov   eax,[CPUtype]\n");
+
+	if(Minimum == 1)
+    {
+    	fprintf(fp, "\t\t test  eax,eax\n");
+        fprintf(fp, "\t\t jz    near ILLEGAL\n\n");
+    }
+    else
+    {
+	   	fprintf(fp, "\t\t cmp   al,%d\n",Minimum);
+   		fprintf(fp, "\t\t jb    near ILLEGAL\n\n");
+    }
 }
 
 /************************************/
@@ -2068,7 +2093,7 @@ void dump_imm( int type, int leng, int mode, int sreg )
         {
         	/* Logicals are allowed to alter SR/CCR */
 
-            if ((!SetX) && (Dest == 11) && (Size != 'L'))
+            if ((!SetX) && (Dest == 11) && (Size != 'L') && (type != 6))
             {
             	Align();
 
@@ -2156,8 +2181,17 @@ void dump_bit_dynamic( int sreg, int type, int mode, int dreg )
     }
 
 	Opcode = 0x0100 | (sreg << 9) | (type<<6) | (mode<<3) | dreg ;
+
 	BaseCode = Opcode & 0x01f8 ;
 	if ( mode == 7 ) BaseCode |= dreg ;
+
+
+    // A7+, A7-
+
+	if ((dreg == 7) && (mode > 2) && (mode < 5))
+	{
+		BaseCode |= dreg;
+	}
 
     Dest = EAtoAMN(Opcode, FALSE);
 
@@ -3129,6 +3163,8 @@ void branchinstructions(void)
 		fprintf(fp, "%s:\n",GenerateLabel(BaseCode+0xff,0));
    		fprintf(fp, "\t\t add   esi,byte 2\n\n");
 
+		CheckCPUType(2);
+
         TimingCycles += 10 ;
 
         if (Opcode > 0x60)
@@ -3719,6 +3755,13 @@ void not(void)
 			BaseCode |= sreg ;
 		}
 
+        // A7+, A7-
+
+		if ( (leng == 0) && (sreg == 7) && (mode > 2) && (mode < 5) )
+		{
+			BaseCode |= sreg ;
+		}
+
         Dest = EAtoAMN(Opcode, FALSE);
 
 	    if ( allow[Dest&0x0f] != '-' )
@@ -4007,7 +4050,7 @@ void nbcd(void)
 {
 	int	Opcode, BaseCode ;
 	int	sreg,mode,Dest ;
-	char allow[] = "0-23456789ab----" ;
+	char allow[] = "0-2345678-------" ;
 
 	for ( mode = 0 ; mode < 8 ; mode++ )
 	for ( sreg = 0 ; sreg < 8 ; sreg++ )
@@ -4017,6 +4060,13 @@ void nbcd(void)
 
 		if ( mode == 7 )
 			BaseCode |= sreg ;
+
+    	// A7+, A7-
+
+		if ((sreg == 7) && (mode > 2) && (mode < 5))
+		{
+			BaseCode |= sreg;
+		}
 
 		Dest = EAtoAMN(BaseCode, FALSE);
 
@@ -4981,6 +5031,13 @@ void cmpm(void)
 	{
 		Opcode = 0xb108 | (regx<<9) | (leng<<6) | regy ;
 		BaseCode = Opcode & 0xb1c8 ;
+
+        if(leng==0)
+        {
+        	if(regx==7) BaseCode |= (regx<<9);
+        	if(regy==7) BaseCode |= regy;
+        }
+
       	switch (leng)
     	{
             case 0:
@@ -5270,11 +5327,14 @@ void movesr(void)
 			        fprintf(fp, "\t\t je    near %s\n\n",TrueLabel);
                 }
 
+                /* 68010 Command ? */
+				if (type==1) CheckCPUType(1);
+
+
 				if ( mode < 7 )
 				{
 					fprintf(fp, "\t\t and   ecx,byte 7\n");
 				}
-
 
 				/* Always read/write word 2 bytes */
 				if (type < 2)
@@ -6329,6 +6389,9 @@ void ReturnandDeallocate(void)
 	{
 		Align();
 		fprintf(fp, "%s:\n",GenerateLabel(BaseCode,0));
+
+		CheckCPUType(1);
+
 		SavePreviousPC();
 
         TimingCycles += 16;
@@ -6372,6 +6435,8 @@ void MoveControlRegister(void)
 		fprintf(fp, "%s:\n",GenerateLabel(BaseCode+Direction,0));
 
 	    TimingCycles += 4; /* Assume same as move usp */
+
+		CheckCPUType(1);
 
 		fprintf(fp, "\t\t test  byte [%s],20h \t\t\t; Supervisor Mode ?\n",REG_SRH);
 		fprintf(fp, "\t\t jz    short OP_%4.4x_Trap\n",BaseCode+Direction);
@@ -6490,7 +6555,7 @@ void CodeSegmentBegin(void)
 
 /* Messages */
 
-	fprintf(fp, "; Make68K - V%s - Copyright 1998, Mike Coates (mcoates@mame.freeserve.co.uk)\n", VERSION);
+	fprintf(fp, "; Make68K - V%s - Copyright 1998, Mike Coates (mame@btinternet.com)\n", VERSION);
     fprintf(fp, ";                               & Darren Olafson (deo@mail.island.net)\n\n");
 
 /* Needed code to make it work! */
@@ -6864,6 +6929,7 @@ void CodeSegmentEnd(void)
     fprintf(fp, "R_VBR\t DD 0\t\t\t ; Vector Base\n");
 
     fprintf(fp, "asmbank\t DD 0\n\n");
+    fprintf(fp, "CPUtype\t DD 0\n\n");
 
     /* Extra space for variables mame uses for debugger */
 
@@ -6999,8 +7065,9 @@ int main(int argc, char **argv)
 {
 	int dwLoop;
 
-	printf("Make68K - V%s - Copyright 1998, Mike Coates (mcoates@mame.freeserve.co.uk)\n", VERSION);
-    printf("                          1999  & Darren Olafson (deo@mail.island.net)\n");
+	printf("\nMake68K - V%s - Copyright 1998, Mike Coates (mame@btinternet.com)\n", VERSION);
+    printf("                            1999, & Darren Olafson (deo@mail.island.net)\n");
+    printf("                            2000\n\n");
 
 	if (argc != 3)
 	{
