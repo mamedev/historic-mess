@@ -1,6 +1,7 @@
 #ifndef INPTPORT_H
 #define INPTPORT_H
 
+#include "memory.h"
 #include "input.h"
 
 /* input ports handling */
@@ -227,6 +228,7 @@ enum { IPT_END=1,IPT_PORT,
 #define MAX_DEFSTR_LEN 20
 extern char ipdn_defaultstrings[][MAX_DEFSTR_LEN];
 
+/* this must match the ipdn_defaultstrings list in inptport.c */
 enum {
 	STR_Off,
 	STR_On,
@@ -324,6 +326,14 @@ READ_HANDLER( input_port_12_r );
 READ_HANDLER( input_port_13_r );
 READ_HANDLER( input_port_14_r );
 READ_HANDLER( input_port_15_r );
+READ_HANDLER( input_port_16_r );
+READ_HANDLER( input_port_17_r );
+READ_HANDLER( input_port_18_r );
+READ_HANDLER( input_port_19_r );
+
+
+
+
 
 struct ipd
 {

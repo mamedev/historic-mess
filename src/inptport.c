@@ -68,6 +68,7 @@ static int analog_previous_x[OSD_MAX_JOY_ANALOG], analog_previous_y[OSD_MAX_JOY_
 
 ***************************************************************************/
 
+/* this must match the enum in inptport.h */
 char ipdn_defaultstrings[][MAX_DEFSTR_LEN] =
 {
 	"Off",
@@ -167,8 +168,11 @@ struct ipd inputport_defaults[] =
 	{ IPT_SERVICE2, "Service 2",     SEQ_DEF_1(KEYCODE_0) },
 	{ IPT_SERVICE3, "Service 3",     SEQ_DEF_1(KEYCODE_MINUS) },
 	{ IPT_SERVICE4, "Service 4",     SEQ_DEF_1(KEYCODE_EQUALS) },
+#ifndef MESS
 	{ IPT_TILT,   "Tilt",            SEQ_DEF_1(KEYCODE_T) },
-
+#else
+	{ IPT_TILT,   "Tilt",            SEQ_DEF_0 },
+#endif
 	{ IPT_JOYSTICK_UP         | IPF_PLAYER1, "P1 Up",          SEQ_DEF_3(KEYCODE_UP, CODE_OR, JOYCODE_1_UP)    },
 	{ IPT_JOYSTICK_DOWN       | IPF_PLAYER1, "P1 Down",        SEQ_DEF_3(KEYCODE_DOWN, CODE_OR, JOYCODE_1_DOWN)  },
 	{ IPT_JOYSTICK_LEFT       | IPF_PLAYER1, "P1 Left",        SEQ_DEF_3(KEYCODE_LEFT, CODE_OR, JOYCODE_1_LEFT)  },
@@ -695,7 +699,7 @@ getout:
 	/* make sure the InputPort definition is correct */
 //	if (in->type != IPT_PORT)
 //	{
-//		if (errorlog) fprintf(errorlog,"Error in InputPort definition: expecting PORT_START\n");
+//		logerror("Error in InputPort definition: expecting PORT_START\n");
 //		return;
 //	}
 //	else in++;
@@ -830,7 +834,7 @@ void save_input_port_settings(void)
 	/* make sure the InputPort definition is correct */
 	if (in->type != IPT_PORT)
 	{
-		if (errorlog) fprintf(errorlog,"Error in InputPort definition: expecting PORT_START\n");
+		logerror("Error in InputPort definition: expecting PORT_START\n");
 		return;
 	}
 	else in++;
@@ -1111,8 +1115,7 @@ void update_analog_port(int port)
 		default:
 			/* Use some defaults to prevent crash */
 			axis = X_AXIS; is_stick = 0; check_bounds = 0;
-			if (errorlog)
-				fprintf (errorlog,"Oops, polling non analog device in update_analog_port()????\n");
+			logerror("Oops, polling non analog device in update_analog_port()????\n");
 	}
 
 
@@ -1319,7 +1322,7 @@ profiler_mark(PROFILER_INPUT);
 	/* make sure the InputPort definition is correct */
 	if (in->type != IPT_PORT)
 	{
-		if (errorlog) fprintf(errorlog,"Error in InputPort definition: expecting PORT_START\n");
+		logerror("Error in InputPort definition: expecting PORT_START\n");
 		return;
 	}
 	else in++;
@@ -1426,8 +1429,8 @@ profiler_mark(PROFILER_INPUT);
 				{
 					input_vblank[port] ^= in->mask;
 					input_port_value[port] ^= in->mask;
-if (errorlog && Machine->drv->vblank_duration == 0)
-	fprintf(errorlog,"Warning: you are using IPT_VBLANK with vblank_duration = 0. You need to increase vblank_duration for IPT_VBLANK to work.\n");
+if (Machine->drv->vblank_duration == 0)
+	logerror("Warning: you are using IPT_VBLANK with vblank_duration = 0. You need to increase vblank_duration for IPT_VBLANK to work.\n");
 				}
 				/* If it's an analog control, handle it appropriately */
 				else if (((in->type & ~IPF_MASK) > IPT_ANALOG_START)
@@ -1464,8 +1467,8 @@ if (errorlog && Machine->drv->vblank_duration == 0)
 
 						if (in->type & IPF_IMPULSE)
 						{
-if (errorlog && IP_GET_IMPULSE(in) == 0)
-	fprintf(errorlog,"error in input port definition: IPF_IMPULSE with length = 0\n");
+if (IP_GET_IMPULSE(in) == 0)
+	logerror("error in input port definition: IPF_IMPULSE with length = 0\n");
 							if (waspressed[ib] == 0)
 								impulsecount[ib] = IP_GET_IMPULSE(in);
 								/* the input bit will be toggled later */
@@ -1668,6 +1671,10 @@ READ_HANDLER( input_port_12_r ) { return readinputport(12); }
 READ_HANDLER( input_port_13_r ) { return readinputport(13); }
 READ_HANDLER( input_port_14_r ) { return readinputport(14); }
 READ_HANDLER( input_port_15_r ) { return readinputport(15); }
+READ_HANDLER( input_port_16_r ) { return readinputport(16); }
+READ_HANDLER( input_port_17_r ) { return readinputport(17); }
+READ_HANDLER( input_port_18_r ) { return readinputport(18); }
+READ_HANDLER( input_port_19_r ) { return readinputport(19); }
 
 #ifdef MAME_NET
 void set_default_player_controls(int player)
