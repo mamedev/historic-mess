@@ -1,20 +1,29 @@
 /***************************************************************************
-Commodore Amiga - (c) 1985, Commodore Business Machines Co.
+Amiga Computer / Arcadia Game System
 
-Preliminary driver by:
+Driver by:
 
-Ernesto Corvi
-ernesto@imagina.com
+Ernesto Corvi & Mariusz Wojcieszek
 
 ***************************************************************************/
 
 #include "driver.h"
 #include "includes/amiga.h"
-#include "image.h"
+#include "cpu/m68000/m68000.h"
 
-#define LOG_CUSTOM				0
-#define LOG_CIA					0
-#define OLD_INTERRUPT_SYSTEM	0
+#define LOG_CUSTOM	1
+#define LOG_CIA		0
+
+#ifdef MESS
+#include "machine/amigafdc.h"
+#else
+/* coin counters */
+static unsigned char coin_counter[2];
+#endif
+
+/* from vidhrdw */
+extern void copper_setpc( unsigned long pc );
+extern void copper_enable( void );
 
 /***************************************************************************
 
@@ -22,48 +31,13 @@ ernesto@imagina.com
 
 ***************************************************************************/
 
+/* required prototype */
+WRITE16_HANDLER(amiga_custom_w);
+
 custom_regs_def custom_regs;
 
-#if OLD_INTERRUPT_SYSTEM
-static int get_int_level( void ) {
-
-	int ints = custom_regs.INTENA & custom_regs.INTREQ;
-
-	if ( custom_regs.INTENA & 0x4000 ) { /* Master interrupt switch */
-
-		/* Level 7 = NMI Can only be triggered from outside the hardware */
-
-		if ( ints & 0x2000 )
-			return m68_level6_irq();
-
-		if ( ints & 0x1800 )
-			return m68_level5_irq();
-
-		if ( ints & 0x0780 )
-			return m68_level4_irq();
-
-		if ( ints & 0x0070 )
-			return m68_level3_irq();
-
-		if ( ints & 0x0008 )
-			return m68_level2_irq();
-
-		if ( ints & 0x0007 )
-			return m68_level1_irq();
-	}
-
-	return 0;
-}
-
-static void trigger_int( void ) {
-
-	int level = get_int_level();
-
-	if ( level )
-		cpu_cause_interrupt( 0, level );
-}
-
-#else
+data16_t *amiga_expansion_ram;
+data16_t *amiga_autoconfig_mem;
 
 static int translate_ints( void ) {
 
@@ -107,7 +81,7 @@ static void check_ints( void ) {
 			cpunum_set_input_line( 0, i + 1, CLEAR_LINE );
 	}
 }
-#endif
+
 
 /***************************************************************************
 
@@ -607,482 +581,6 @@ static void blitter_setup( void ) {
 
 /***************************************************************************
 
-	Floppy disk controller emulation
-
-***************************************************************************/
-
-/* required prototype */
-static void cia_issue_index( void );
-static void setup_fdc_buffer( int drive );
-
-typedef struct {
-	int motor_on;
-	int side;
-	int dir;
-	int wprot;
-	int disk_changed;
-	mame_file *f;
-	int cyl;
-	unsigned char mfm[544*2*11];
-	int	cached;
-	void *rev_timer;
-	int rev_timer_started;
-	int pos;
-} fdc_def;
-
-static fdc_def fdc_status[4];
-/* signals */
-static int fdc_sel = 0x0f;
-static int fdc_dir = 0;
-static int fdc_side = 1;
-static int fdc_step = 1;
-static int fdc_rdy = 1;
-
-static void fdc_rev_proc( int drive );
-
-DEVICE_INIT(amiga_fdc)
-{
-	int id = image_index_in_device(image);
-	fdc_status[id].motor_on = 0;
-	fdc_status[id].side = 0;
-	fdc_status[id].dir = 0;
-	fdc_status[id].wprot = 1;
-	fdc_status[id].cyl = 0;
-	fdc_status[id].rev_timer = timer_alloc(fdc_rev_proc);
-	fdc_status[id].rev_timer_started = 0;
-	fdc_status[id].cached = -1;
-	fdc_status[id].pos = 0;
-
-	memset( fdc_status[id].mfm, 0xaa, 544*2*11 );
-	return INIT_PASS;
-}
-
-DEVICE_LOAD(amiga_fdc)
-{
-	int id = image_index_in_device(image);
-
-	fdc_status[id].disk_changed = 1;
-	fdc_status[id].f = file;
-	fdc_status[id].disk_changed = 0;
-
-	fdc_sel = 0x0f;
-	fdc_dir = 0;
-	fdc_side = 1;
-	fdc_step = 1;
-	fdc_rdy = 1;
-
-	return INIT_PASS;
-}
-
-static int fdc_get_curpos( int drive ) {
-	double elapsed;
-	int speed;
-	int bytes;
-	int pos;
-
-	if ( fdc_status[drive].rev_timer_started == 0 ) {
-		logerror("Rev timer not started on drive %d, cant get position!\n", drive );
-		return 0;
-	}
-
-	elapsed = timer_timeelapsed( fdc_status[drive].rev_timer );
-	speed = ( custom_regs.ADKCON & 0x100 ) ? 2 : 4;
-
-	bytes = elapsed / ( TIME_IN_USEC( speed * 8 ) );
-	pos = bytes % ( 544*2*11 );
-
-	return pos;
-}
-
-static unsigned short fdc_get_byte( void ) {
-	int pos;
-	int i, drive = -1;
-	unsigned short ret;
-
-	ret = ( ( custom_regs.DSKLEN >> 1 ) & 0x4000 ) & ( ( custom_regs.DMACON << 10 ) & 0x4000 );
-	ret |= ( custom_regs.DSKLEN >> 1 ) & 0x2000;
-
-	for ( i = 0; i < 4; i++ ) {
-		if ( !( fdc_sel & ( 1 << i ) ) )
-			drive = i;
-	}
-
-	if ( drive == -1 )
-		return ret;
-
-	if ( fdc_status[drive].disk_changed )
-		return ret;
-
-	setup_fdc_buffer( drive );
-
-	pos = fdc_get_curpos( drive );
-
-	if ( fdc_status[drive].mfm[pos] == ( custom_regs.DSKSYNC >> 8 ) &&
-		 fdc_status[drive].mfm[pos+1] == ( custom_regs.DSKSYNC & 0xff ) )
-			ret |= 0x1000;
-
-	if ( pos != fdc_status[drive].pos ) {
-		ret |= 0x8000;
-		fdc_status[drive].pos = pos;
-	}
-
-	ret |= fdc_status[drive].mfm[pos];
-
-	return ret;
-}
-
-static void fdc_dma_proc( int drive ) {
-
-	if ( fdc_status[drive].disk_changed )
-		return;
-
-	setup_fdc_buffer( drive );
-
-	if ( custom_regs.DSKLEN & 0x4000 ) {
-		logerror("Write to disk unsupported yet\n" );
-	} else {
-		unsigned char *RAM = &memory_region(REGION_CPU1)[( custom_regs.DSKPTH << 16 ) | custom_regs.DSKPTL];
-		int cur_pos = fdc_status[drive].pos;
-		int len = custom_regs.DSKLEN & 0x3fff;
-
-		while ( len-- ) {
-			int dat = ( fdc_status[drive].mfm[cur_pos++] ) << 8;
-
-			cur_pos %= ( 544 * 2 * 11 );
-
-			dat |= fdc_status[drive].mfm[cur_pos++];
-
-			cur_pos %= ( 544 * 2 * 11 );
-
-			*((data16_t *) RAM) = dat;
-
-			RAM += 2;
-		}
-	}
-
-	amiga_custom_w( 0x009c>>1, 0x8002, 0);
-}
-
-static void fdc_setup_dma( void ) {
-	int i, cur_pos, drive = -1;
-	int time = 0;
-
-	if ( ( custom_regs.DSKLEN & 0x8000 ) == 0 )
-		return;
-
-	if ( ( custom_regs.DMACON & 0x0210 ) == 0 )
-		return;
-
-	for ( i = 0; i < 4; i++ ) {
-		if ( !( fdc_sel & ( 1 << i ) ) )
-			drive = i;
-	}
-
-	if ( drive == -1 ) {
-		logerror("Disk DMA started with no drive selected!\n" );
-		return;
-	}
-
-	if ( fdc_status[drive].disk_changed )
-		return;
-
-	setup_fdc_buffer( drive );
-
-	fdc_status[drive].pos = cur_pos = fdc_get_curpos( drive );
-
-	if ( custom_regs.ADKCON & 0x0400 ) { /* Wait for sync */
-		if ( custom_regs.DSKSYNC != 0x4489 ) {
-			logerror("Attempting to read a non-standard SYNC\n" );
-		}
-
-		i = cur_pos;
-		do {
-			if ( fdc_status[drive].mfm[i] == ( custom_regs.DSKSYNC >> 8 ) &&
-				 fdc_status[drive].mfm[i+1] == ( custom_regs.DSKSYNC & 0xff ) )
-				 	break;
-
-			i++;
-			i %= ( 544 * 2 * 11 );
-			time++;
-		} while( i != cur_pos );
-
-		if ( i == cur_pos && time != 0 ) {
-			logerror("SYNC not found on track!\n" );
-			return;
-		} else {
-			fdc_status[drive].pos = i + 2;
-		}
-
-		time += ( custom_regs.DSKLEN & 0x3fff ) * 2;
-		time *= ( custom_regs.ADKCON & 0x0100 ) ? 2 : 4;
-		time *= 8;
-		timer_set( TIME_IN_USEC( time ), drive, fdc_dma_proc );
-	} else {
-		time = ( custom_regs.DSKLEN & 0x3fff ) * 2;
-		time *= ( custom_regs.ADKCON & 0x0100 ) ? 2 : 4;
-		time *= 8;
-		timer_set( TIME_IN_USEC( time ), drive, fdc_dma_proc );
-	}
-}
-
-static void setup_fdc_buffer( int drive )
-{
-	int sector, offset, len;
-	static unsigned char temp_cyl[512*11];
-
-	/* no disk in drive */
-	if ( fdc_status[drive].disk_changed )
-		return;
-
-	if ( fdc_status[drive].f == NULL ) {
-		fdc_status[drive].disk_changed = 1;
-		return;
-	}
-
-	len = 512*11;
-
-	offset = ( fdc_status[drive].cyl << 1 ) | fdc_side;
-
-	if ( fdc_status[drive].cached == offset )
-		return;
-
-	if ( mame_fseek( fdc_status[drive].f, offset * len, SEEK_SET ) ) {
-		logerror("FDC: mame_fseek failed!\n" );
-		fdc_status[drive].f = NULL;
-		fdc_status[drive].disk_changed = 1;
-	}
-
-	mame_fread( fdc_status[drive].f, temp_cyl, len );
-
-	for ( sector = 0; sector < 11; sector++ ) {
-		unsigned char secbuf[544];
-	    int i;
-	    unsigned char *mfmbuf = ( &fdc_status[drive].mfm[544*2*sector] );
-		unsigned long deven,dodd;
-		unsigned long hck = 0,dck = 0;
-
-	    secbuf[0] = secbuf[1] = 0x00;
-	    secbuf[2] = secbuf[3] = 0xa1;
-	    secbuf[4] = 0xff;
-	    secbuf[5] = offset;
-	    secbuf[6] = sector;
-	    secbuf[7] = 11 - sector;
-
-	    for ( i = 8; i < 24; i++ )
-			secbuf[i] = 0;
-
-	    memcpy( &secbuf[32], &temp_cyl[sector*512], 512 );
-
-		mfmbuf[0*2] = 0xaa;
-		mfmbuf[0*2+1] = 0xaa;
-		mfmbuf[1*2] = 0xaa;
-		mfmbuf[1*2+1] = 0xaa;
-		mfmbuf[2*2] = 0x44;
-		mfmbuf[2*2+1] = 0x89;
-		mfmbuf[3*2] = 0x44;
-		mfmbuf[3*2+1] = 0x89;
-
-	    deven = ( ( secbuf[4] << 24) | ( secbuf[5] << 16 ) | ( secbuf[6] << 8 ) | ( secbuf[7] ) );
-	    dodd = deven >> 1;
-	    deven &= 0x55555555; dodd &= 0x55555555;
-
-		mfmbuf[4*2] = ( ( dodd >> 16 ) >> 8 ) & 0xff;
-		mfmbuf[4*2+1] = ( ( dodd >> 16 ) ) & 0xff;
-		mfmbuf[5*2] = ( dodd >> 8 ) & 0xff;
-		mfmbuf[5*2+1] = dodd & 0xff;
-		mfmbuf[6*2] = ( ( deven >> 16 ) >> 8 ) & 0xff;
-		mfmbuf[6*2+1] = ( ( deven >> 16 ) ) & 0xff;
-		mfmbuf[7*2] = ( deven >> 8 ) & 0xff;
-		mfmbuf[7*2+1] = deven & 0xff;
-
-		for ( i = 8; i < 48; i++ )
-			mfmbuf[i*2] = mfmbuf[i*2+1] = 0xaa;
-
-	    for (i = 0; i < 512; i += 4) {
-			deven = ((secbuf[i+32] << 24) | (secbuf[i+33] << 16)
-				 | (secbuf[i+34] << 8) | (secbuf[i+35]));
-			dodd = deven >> 1;
-			deven &= 0x55555555; dodd &= 0x55555555;
-
-			mfmbuf[i + ( 32 * 2 )] = ( ( dodd >> 16 ) >> 8 ) & 0xff;
-			mfmbuf[i + ( 32 * 2 ) + 1] = ( dodd >> 16 ) & 0xff;
-			mfmbuf[i + ( 33 * 2 )] = ( dodd >> 8 ) & 0xff;
-			mfmbuf[i + ( 33 * 2 ) + 1] = dodd & 0xff;
-
-			mfmbuf[i + ( ( 256 + 32 ) * 2 )] = ( ( deven >> 16 ) >> 8 ) & 0xff;
-			mfmbuf[i + ( ( 256 + 32 ) * 2 ) + 1] = ( deven >> 16 ) & 0xff;
-			mfmbuf[i + ( ( 256 + 33 ) * 2 )] = ( deven >> 8 ) & 0xff;
-			mfmbuf[i + ( ( 256 + 33 ) * 2 ) + 1] = deven & 0xff;
-	    }
-
-	    for(i = 4; i < 24; i += 2)
-			hck ^= ( ( mfmbuf[i*2] << 24) | ( mfmbuf[i*2+1] << 16 ) ) | ( ( mfmbuf[i*2+2] << 8 ) | mfmbuf[i*2+3] );
-
-	    deven = dodd = hck; dodd >>= 1;
-
-		mfmbuf[24*2] = ( ( dodd >> 16 ) >> 8 ) & 0xff;
-		mfmbuf[24*2+1] = ( ( dodd >> 16 ) ) & 0xff;
-		mfmbuf[25*2] = ( dodd >> 8 ) & 0xff;
-		mfmbuf[25*2+1] = dodd & 0xff;
-		mfmbuf[26*2] = ( ( deven >> 16 ) >> 8 ) & 0xff;
-		mfmbuf[26*2+1] = ( ( deven >> 16 ) ) & 0xff;
-		mfmbuf[27*2] = ( deven >> 8 ) & 0xff;
-		mfmbuf[27*2+1] = deven & 0xff;
-
-	    for(i = 32; i < 544; i += 2)
-			dck ^= ( ( mfmbuf[i*2] << 24) | ( mfmbuf[i*2+1] << 16 ) ) | ( ( mfmbuf[i*2+2] << 8 ) | mfmbuf[i*2+3] );
-
-	    deven = dodd = dck; dodd >>= 1;
-
-		mfmbuf[28*2] = ( ( dodd >> 16 ) >> 8 ) & 0xff;
-		mfmbuf[28*2+1] = ( ( dodd >> 16 ) ) & 0xff;
-		mfmbuf[29*2] = ( dodd >> 8 ) & 0xff;
-		mfmbuf[29*2+1] = dodd & 0xff;
-		mfmbuf[30*2] = ( ( deven >> 16 ) >> 8 ) & 0xff;
-		mfmbuf[30*2+1] = ( ( deven >> 16 ) ) & 0xff;
-		mfmbuf[31*2] = ( deven >> 8 ) & 0xff;
-		mfmbuf[31*2+1] = deven & 0xff;
-	}
-
-	fdc_status[drive].cached = offset;
-}
-
-static void fdc_rev_proc( int drive ) {
-	int time;
-
-	cia_issue_index();
-
-	time = ( custom_regs.ADKCON & 0x100 ) ? 2 : 4;
-	time *= ( 544 * 2 * 11 );
-	time *= 8;
-	timer_adjust(fdc_status[drive].rev_timer, TIME_IN_USEC( time ), drive, 0);
-	fdc_status[drive].rev_timer_started = 1;
-}
-
-static void start_rev_timer( int drive ) {
-	int time;
-
-	if ( fdc_status[drive].rev_timer_started ) {
-		logerror("Revolution timer started twice?!\n" );
-		return;
-	}
-
-	time = ( custom_regs.ADKCON & 0x100 ) ? 2 : 4;
-	time *= ( 544 * 2 * 11 );
-	time *= 8;
-
-	timer_adjust(fdc_status[drive].rev_timer, TIME_IN_USEC( time ), drive, 0);
-	fdc_status[drive].rev_timer_started = 1;
-}
-
-static void stop_rev_timer( int drive ) {
-	if ( fdc_status[drive].rev_timer_started == 0 ) {
-		logerror("Revolution timer never started?!\n" );
-		return;
-	}
-
-	timer_reset( fdc_status[drive].rev_timer, TIME_NEVER );
-	fdc_status[drive].rev_timer_started = 0;
-}
-
-static void fdc_setup_leds( int drive ) {
-
-	if ( drive == 0 )
-		set_led_status( 1, fdc_status[drive].motor_on ); /* update internal drive led */
-
-	if ( drive == 1 )
-		set_led_status( 2, fdc_status[drive].motor_on ); /* update external drive led */
-}
-
-static void fdc_stepdrive( int drive ) {
-	if ( fdc_dir ) {
-		if ( fdc_status[drive].cyl )
-			fdc_status[drive].cyl--;
-	} else {
-		if ( fdc_status[drive].cyl < 79 )
-			fdc_status[drive].cyl++;
-	}
-}
-
-static void fdc_motor( int drive, int off ) {
-	int on = !off;
-
-	if ( ( fdc_status[drive].motor_on == 0 ) && on ) {
-		fdc_status[drive].pos = 0;
-
-		start_rev_timer( drive );
-
-	} else {
-		if ( fdc_status[drive].motor_on && off )
-			stop_rev_timer( drive );
-	}
-
-	fdc_status[drive].motor_on = on;
-}
-
-static void fdc_control_w( int data ) {
-	int step_pulse;
-	int drive;
-
-	if ( fdc_sel != ( ( data >> 3 ) & 15 ) )
-		fdc_rdy = 0;
-
-	fdc_sel = ( data >> 3 ) & 15;
-    fdc_side = 1 - ( ( data >> 2 ) & 1 );
-	fdc_dir = ( data >> 1 ) & 1;
-
-	step_pulse = data & 1;
-
-    if ( fdc_step != step_pulse ) {
-		fdc_step = step_pulse;
-
-    	if ( fdc_step == 0 ) {
-		    for ( drive = 0; drive < 4; drive++ ) {
-				if ( !( fdc_sel & ( 1 << drive ) ) )
-				    fdc_stepdrive( drive );
-			}
-		}
-	}
-
-	for ( drive = 0; drive < 4; drive++ ) {
-		if ( !( fdc_sel & ( 1 << drive ) ) ) {
-			fdc_motor( drive, ( data >> 7 ) & 1 );
-			fdc_setup_leds( drive );
-		}
-    }
-}
-
-static int fdc_status_r( void ) {
-	int drive, ret = 0x3c;
-
-	for ( drive = 0; drive < 4; drive++ ) {
-		if ( !( fdc_sel & ( 1 << drive ) ) ) {
-			if ( fdc_status[drive].motor_on ) {
-				if ( fdc_rdy )
-					ret &= ~0x20;
-				fdc_rdy = 1;
-			} else {
-				/* if we got a floppy image, then return we're on */
-				if ( fdc_status[drive].disk_changed == 0 )
-					ret &= ~0x20;
-			}
-
-			if ( fdc_status[drive].cyl == 0 )
-				ret &= ~0x10;
-
-			if ( fdc_status[drive].wprot )
-				ret &= ~0x08;
-
-			if ( fdc_status[drive].disk_changed )
-				ret &= ~0x04;
-		}
-	}
-
-	return ret;
-}
-
-/***************************************************************************
-
 	8520 CIA emulation
 
 ***************************************************************************/
@@ -1262,7 +760,7 @@ static void cia_hblank_update( int param ) {
 }
 
 /* Issue a index pulse when a disk revolution completes */
-static void cia_issue_index( void ) {
+void amiga_cia_issue_index( void ) {
 	cia_8520[1].ics |= 0x90;
 	if ( cia_8520[1].icr & 0x10 ) {
 	    amiga_custom_w( 0x009c>>1, 0xa000, 0 /* could also be hibyte only 0xff*/);
@@ -1272,38 +770,69 @@ static void cia_issue_index( void ) {
 static int cia_0_portA_r( void ) {
 	int ret = readinputport( 0 ) & 0xc0;
 
-	ret |= fdc_status_r();
-
+#ifdef MESS
+	ret |= amiga_fdc_status_r();
+#else
+	ret |= 0x3f;
+#endif
+	
 	return ret; /* Gameport 1 and 0 buttons */
 }
 
 static int cia_0_portB_r( void ) {
-	logerror("Program read from the parallel port\n" );
-	return 0;
+
+	/* parallel port */
+	int ret = 0;
+
+#ifndef MESS
+	ret = readinputport( 1 ) & 0x0f;
+
+	ret |= ( coin_counter[0] & 3 ) << 4;
+	ret |= ( coin_counter[1] & 3 ) << 6;
+
+	logerror( "Coin counter read at PC=%06x\n", activecpu_get_pc() );
+#endif
+	return ret;
 }
 
-static void cia_0_portA_w( int data ) {
-	/* bit 1 = overlay (data & 1 ) */
+static void cia_0_portA_w( int data ) 
+{
+	if ( (data & 1) == 1)
+	{
+		/* overlay enabled, map Amiga system ROM on 0x000000 */
+		memory_install_read16_handler(0, ADDRESS_SPACE_PROGRAM, 0x000000, 0x07ffff, 0, 0, MRA16_BANK3 );
+		memory_install_write16_handler(0, ADDRESS_SPACE_PROGRAM, 0x000000, 0x07ffff, 0, 0, MWA16_ROM );
+	}
+	else if ( ((data & 1) == 0))
+	{
+		/* overlay disabled, map RAM on 0x000000 */
+		memory_install_read16_handler(0, ADDRESS_SPACE_PROGRAM, 0x000000, 0x07ffff, 0, 0, MRA16_RAM );
+		memory_install_write16_handler(0, ADDRESS_SPACE_PROGRAM, 0x000000, 0x07ffff, 0, 0, MWA16_RAM );
+	}
+
 	set_led_status( 0, ( data & 2 ) ? 0 : 1 ); /* bit 2 = Power Led on Amiga*/
 }
 
 static void cia_0_portB_w( int data ) {
-	logerror("Program wrote to the parallel port\n" );
+	/* parallel port */
+	/* bit 0 = coin counter reset? */
 }
 
 static int cia_1_portA_r( void ) {
-	return 0x00;
+	return 0x0;
 }
 
 static int cia_1_portB_r( void ) {
-	return 0x00;
+	return 0x0;
 }
 
 static void cia_1_portA_w( int data ) {
 }
 
 static void cia_1_portB_w( int data ) {
-	fdc_control_w( data );
+#ifdef MESS
+	amiga_fdc_control_w( data );
+#endif
 }
 
 static void cia_init( void ) {
@@ -1597,7 +1126,8 @@ static void amiga_custom_init( void ) {
 	custom_regs.DDFSTOP = 0xd8;
 }
 
-READ16_HANDLER ( amiga_custom_r ) {
+READ16_HANDLER ( amiga_custom_r ) 
+{
 
     offset<<=1;
 	offset &= 0xfff;
@@ -1606,23 +1136,24 @@ READ16_HANDLER ( amiga_custom_r ) {
 		case 0x0002: /* DMACON */
 			return custom_regs.DMACON;
 		break;
-
+		
 		case 0x0004: /* VPOSR */
 			return ( ( cpu_getscanline() >> 8 ) & 1 );
 		break;
-
+		
 		case 0x0006: /* VHPOSR */
 			{
 				int h, v;
-
+				
 				h = ( cpu_gethorzbeampos() >> 1 ); /* in color clocks */
 				v = ( cpu_getscanline() & 0xff );
-
+				
 				return ( v << 8 ) | h;
 			}
 		break;
-
+		
 		case 0x000a: /* JOY0DAT */
+#ifdef MESS
 			if ( readinputport( 0 ) & 0x20 ) {
 				int input = ( readinputport( 1 ) >> 4 );
 				int	top,bot,lft,rgt;
@@ -1643,9 +1174,26 @@ READ16_HANDLER ( amiga_custom_r ) {
 
 				return input;
 			}
+#else
+			{
+				int input = ( readinputport( 2 ) >> 4 );
+				int	top,bot,lft,rgt;
+				
+				top = ( input >> 3 ) & 1;
+				bot = ( input >> 2 ) & 1;
+				lft = ( input >> 1 ) & 1;
+				rgt = input & 1;
+
+				if ( lft ) top ^= 1;
+				if ( rgt ) bot ^= 1;
+
+				return ( bot | ( rgt << 1 ) | ( top << 8 ) | ( lft << 9 ) );
+			}
+#endif
 		break;
 
 		case 0x000c: /* JOY1DAT */
+#ifdef MESS
 			if ( readinputport( 0 ) & 0x10 ) {
 				int input = ( readinputport( 1 ) & 0x0f );
 				int	top,bot,lft,rgt;
@@ -1666,15 +1214,26 @@ READ16_HANDLER ( amiga_custom_r ) {
 
 				return input;
 			}
+#else
+			{
+				int input = ( readinputport( 2 ) & 0x0f );
+				int	top,bot,lft,rgt;
+				
+				top = ( input >> 3 ) & 1;
+				bot = ( input >> 2 ) & 1;
+				lft = ( input >> 1 ) & 1;
+				rgt = input & 1;
+
+				if ( lft ) top ^= 1;
+				if ( rgt ) bot ^= 1;
+				
+				return ( bot | ( rgt << 1 ) | ( top << 8 ) | ( lft << 9 ) );
+			}
+#endif
 		break;
 
 		case 0x0010: /* ADKCONR */
 			return custom_regs.ADKCON;
-		break;
-
-		case 0x0012: /* POT0DAT */
-		case 0x0014: /* POT0DAT */
-			return 0;
 		break;
 
 		case 0x0016: /* POTGOR */
@@ -1685,10 +1244,14 @@ READ16_HANDLER ( amiga_custom_r ) {
 		break;
 
 		case 0x001a: /* DSKBYTR */
-			return fdc_get_byte();
+#ifdef MESS
+			return amiga_fdc_get_byte();
+#else
+			return 0x00;
+#endif
 		break;
 
-
+				
 		case 0x001c: /* INTENA */
 			return custom_regs.INTENA;
 		break;
@@ -1696,18 +1259,18 @@ READ16_HANDLER ( amiga_custom_r ) {
 		case 0x001e: /* INTREQ */
 			return custom_regs.INTREQ;
 		break;
-
+		
 		case 0x0088: /* COPJMPA */
 			copper_setpc( ( custom_regs.COPLCH[0] << 16 ) | custom_regs.COPLCL[0] );
 		break;
-
+		
 		case 0x008a: /* COPJMPB */
 			copper_setpc( ( custom_regs.COPLCH[1] << 16 ) | custom_regs.COPLCL[1] );
 		break;
 
 		default:
 #if LOG_CUSTOM
-			logerror("PC = %06x - Read from Custom %04x\n", activecpu_get_pc(), offset );
+			logerror( "PC = %06x - Read from Custom %04x\n", cpu_getactivecpu() != -1 ? activecpu_get_pc() : 0, offset );
 #endif
 		break;
 	}
@@ -1721,7 +1284,8 @@ READ16_HANDLER ( amiga_custom_r ) {
 	else \
 		reg &= ~( data & 0x7fff ); }
 
-WRITE16_HANDLER ( amiga_custom_w ) {
+WRITE16_HANDLER ( amiga_custom_w ) 
+{
     offset<<=1;
 	offset &= 0xfff;
 
@@ -1729,43 +1293,45 @@ WRITE16_HANDLER ( amiga_custom_w ) {
 		case 0x0020: /* DSKPTH */
 			custom_regs.DSKPTH = data;
 		break;
-
+		
 		case 0x0022: /* DSKPTL */
 			custom_regs.DSKPTL = data;
 		break;
-
+						
 		case 0x0024: /* DSKLEN */
+#ifdef MESS
 			if ( data & 0x8000 ) {
 				if ( custom_regs.DSKLEN & 0x8000 )
-					fdc_setup_dma();
+					amiga_fdc_setup_dma();
 			}
+#endif
 			custom_regs.DSKLEN = data;
 		break;
-
+		
 		case 0x002e: /* COPCON */
 			custom_regs.COPCON = data & 2;
 		break;
-
+		
 		case 0x0034: /* POTGO */
 			custom_regs.POTGO = data;
 		break;
-
+		
 		case 0x0040: /* BLTCON0 */
 			custom_regs.BLTCON0 = data;
 		break;
-
+		
 		case 0x0042: /* BLTCON1 */
 			custom_regs.BLTCON1 = data;
 		break;
-
+		
 		case 0x0044: /* BLTAFWM */
 			custom_regs.BLTAFWM = data;
 		break;
-
+		
 		case 0x0046: /* BLTALWM */
 			custom_regs.BLTALWM = data;
 		break;
-
+		
 		case 0x0048: /* BLTCPTH */
 		case 0x004a: /* BLTCPTL */
 		case 0x004c: /* BLTBPTH */
@@ -1778,7 +1344,7 @@ WRITE16_HANDLER ( amiga_custom_w ) {
 				int lo = ( offset & 2 );
 				int loc = ( offset - 0x48 ) >> 2;
 				int order[4] = { 2, 1, 0, 3 };
-
+				
 				if ( lo )
 					custom_regs.BLTxPTL[order[loc]] = ( data & 0xfffe ); /* should be word aligned, we make sure is is */
 				else
@@ -1798,7 +1364,7 @@ WRITE16_HANDLER ( amiga_custom_w ) {
 			{
 				int loc = ( offset >> 1 ) & 3;
 				int order[4] = { 2, 1, 0, 3 };
-
+				
 				custom_regs.BLTxMOD[order[loc]] = ( signed short )( data & ~1 ); /* strip off lsb */
 			}
 		break;
@@ -1809,7 +1375,7 @@ WRITE16_HANDLER ( amiga_custom_w ) {
 			{
 				int loc = ( offset >> 1 ) & 3;
 				int order[3] = { 2, 1, 0 };
-
+				
 				custom_regs.BLTxDAT[order[loc]] = data;
 			}
 		break;
@@ -1825,7 +1391,7 @@ WRITE16_HANDLER ( amiga_custom_w ) {
 			{
 				int lo = ( offset & 2 );
 				int loc = ( offset >> 2 ) & 1;
-
+				
 				if ( lo )
 					custom_regs.COPLCL[loc] = ( data & ~1 ); /* should be word aligned, we make sure it is */
 				else
@@ -1836,58 +1402,48 @@ WRITE16_HANDLER ( amiga_custom_w ) {
 		case 0x0088: /* COPJMPA */
 			copper_setpc( ( custom_regs.COPLCH[0] << 16 ) | custom_regs.COPLCL[0] );
 		break;
-
+		
 		case 0x008a: /* COPJMPB */
 			copper_setpc( ( custom_regs.COPLCH[1] << 16 ) | custom_regs.COPLCL[1] );
 		break;
-
+		
 		case 0x008e: /* DIWSTRT */
 			custom_regs.DIWSTRT = data;
 		break;
-
+		
 		case 0x0090: /* DIWSTOP */
 			custom_regs.DIWSTOP = data;
 		break;
-
+		
 		case 0x0092: /* DDFSTRT */
 			custom_regs.DDFSTRT = data & 0xfc;
 			/* impose hardware limits ( HRM, page 75 ) */
 			if ( custom_regs.DDFSTRT < 0x18 )
 				custom_regs.DDFSTRT = 0x18;
 		break;
-
+		
 		case 0x0094: /* DDFSTOP */
 			custom_regs.DDFSTOP = data & 0xfc;
 			/* impose hardware limits ( HRM, page 75 ) */
 			if ( custom_regs.DDFSTOP > 0xd8 )
 				custom_regs.DDFSTOP = 0xd8;
 		break;
-
+			
 		case 0x0096: /* DMACON */
 			SETCLR( custom_regs.DMACON, data )
 			copper_enable();
 		break;
-
+		
 		case 0x009a: /* INTENA */
 			SETCLR( custom_regs.INTENA, data )
-#if OLD_INTERRUPT_SYSTEM
-			if ( data & 0x8000 )
-				trigger_int();
-#else
 			check_ints();
-#endif
 		break;
-
+		
 		case 0x009c: /* INTREQ */
 			SETCLR( custom_regs.INTREQ, data )
-#if OLD_INTERRUPT_SYSTEM
-			if ( data & 0x8000 )
-				trigger_int();
-#else
 			check_ints();
-#endif
 		break;
-
+		
 		case 0x009e: /* ADKCON */
 			SETCLR( custom_regs.ADKCON, data )
 		break;
@@ -1907,7 +1463,7 @@ WRITE16_HANDLER ( amiga_custom_w ) {
 			{
 				int lo = ( offset & 2 );
 				int plane = ( offset >> 2 ) & 0x07;
-
+				
 				if ( lo ) {
 					custom_regs.BPLPTR[plane] &= 0x001f0000;
 					custom_regs.BPLPTR[plane] |= ( data & 0xfffe );
@@ -1920,14 +1476,14 @@ WRITE16_HANDLER ( amiga_custom_w ) {
 
 		case 0x0100: /* BPLCON0 */
 			custom_regs.BPLCON0 = data;
-
+			
 			if ( ( custom_regs.BPLCON0 & ( BPLCON0_BPU0 | BPLCON0_BPU1 | BPLCON0_BPU2 ) ) == ( BPLCON0_BPU0 | BPLCON0_BPU1 | BPLCON0_BPU2 ) ) {
 				/* planes go from 0 to 6, inclusive */
-				logerror("This game is doing funky planes stuff. (planes > 6)\n" );
+				logerror( "This game is doing funky planes stuff. (planes > 6)\n" );
 				custom_regs.BPLCON0 &= ~BPLCON0_BPU0;
 			}
 		break;
-
+		
 		case 0x0102: /* BPLCON1 */
 			custom_regs.BPLCON1 = data & 0xff;
 		break;
@@ -1935,15 +1491,15 @@ WRITE16_HANDLER ( amiga_custom_w ) {
 		case 0x0104: /* BPLCON2 */
 			custom_regs.BPLCON2 = data & 0x7f;
 		break;
-
+		
 		case 0x0108: /* BPL1MOD */
 			custom_regs.BPL1MOD = data;
 		break;
-
+		
 		case 0x010a: /* BPL2MOD */
 			custom_regs.BPL2MOD = data;
 		break;
-
+		
 		case 0x0110: /* BPL1DAT */
 		case 0x0112: /* BPL2DAT */
 		case 0x0114: /* BPL3DAT */
@@ -1972,7 +1528,7 @@ WRITE16_HANDLER ( amiga_custom_w ) {
 			{
 				int lo = ( offset & 2 );
 				int num = ( offset >> 2 ) & 0x07;
-
+				
 				if ( lo ) {
 					custom_regs.SPRxPT[num] &= 0x001f0000;
 					custom_regs.SPRxPT[num] |= ( data & 0xfffe );
@@ -1983,7 +1539,7 @@ WRITE16_HANDLER ( amiga_custom_w ) {
 				}
 			}
 		break;
-
+		
 		case 0x180: /* COLOR00 */
 		case 0x182: /* COLOR01 */
 		case 0x184: /* COLOR02 */
@@ -2018,14 +1574,14 @@ WRITE16_HANDLER ( amiga_custom_w ) {
 		case 0x1be: /* COLOR31 */
 			{
 				int color = ( offset - 0x180 ) >> 1;
-
+		
 				custom_regs.COLOR[color] = data;
 			}
 		break;
-
+		
 		default:
 #if LOG_CUSTOM
-		logerror("PC = %06x - Wrote to Custom %04x (%04x)\n", activecpu_get_pc(), offset, data );
+		logerror( "PC = %06x - Wrote to Custom %04x (%04x)\n", cpu_getactivecpu() != -1 ? activecpu_get_pc() : 0, offset, data );
 #endif
 		break;
 	}
@@ -2037,8 +1593,9 @@ WRITE16_HANDLER ( amiga_custom_w ) {
 
 ***************************************************************************/
 
-INTERRUPT_GEN( amiga_vblank_irq )
+INTERRUPT_GEN(amiga_vblank_irq)
 {
+
 	/* Update TOD on CIA A */
 	cia_vblank_update();
 
@@ -2049,6 +1606,30 @@ INTERRUPT_GEN( amiga_vblank_irq )
 	}
 
 	amiga_custom_w( 0x009c>>1, 0x8020, 0);
+	
+#ifndef MESS
+	/* update coin counters */
+
+	/* check for a 0 -> 1 transition */
+	if ( readinputport( 0 ) & 0x20 ) {
+		if ( ( coin_counter[0] & 0x80 ) == 0 ) {
+			if ( coin_counter[0] < 3 )
+				coin_counter[0]++;
+			coin_counter[0] |= 0x80;
+		}
+	} else
+		coin_counter[0] = 0;
+
+	/* check for a 0 -> 1 transition */
+	if ( readinputport( 0 ) & 0x10 ) {
+		if ( ( coin_counter[1] & 0x80 ) == 0 ) {
+			if ( coin_counter[1] < 3 )
+				coin_counter[1]++;
+			coin_counter[1] |= 0x80;
+		}
+	} else
+		coin_counter[1] = 0;
+#endif
 }
 
 /***************************************************************************
@@ -2057,18 +1638,30 @@ INTERRUPT_GEN( amiga_vblank_irq )
 
 ***************************************************************************/
 
-MACHINE_INIT( amiga )
+void amiga_m68k_reset( void )
 {
+	logerror( "Executed RESET at PC=%06x\n", activecpu_get_pc() );
+	amiga_cia_w( 0x1001/2, 1, 0 );	/* enable overlay */
+	memory_set_opbase(0);
+}
+
+MACHINE_INIT(amiga)
+{	
+	/* set m68k reset  function */
+	cpunum_set_info_fct(0, CPUINFO_PTR_M68K_RESET_CALLBACK, (genf *)amiga_m68k_reset);
+
 	/* Initialize the CIA's */
 	cia_init();
 
 	/* Initialize the Custom chips */
 	amiga_custom_init();
 
-	/* setup the ROM bank */
-	cpu_setbank( 2, &memory_region( REGION_CPU1 )[0x100000] );
+	/* set the overlay bit */
+	amiga_cia_w( 0x1001/2, 1, 0 );
 
-	/* Fake our reset pointer */
-	/* This is done with a hardware overlay from the 8520 CIA A in the real hardware */
-	memcpy( memory_region( REGION_CPU1 ), &memory_region( REGION_CPU1 )[0x180000], 8 );
+#ifndef MESS
+	/* reset coin counters */
+	coin_counter[0] = coin_counter[1] = 0;
+#endif
 }
+

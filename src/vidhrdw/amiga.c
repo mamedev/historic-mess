@@ -1,10 +1,9 @@
 /***************************************************************************
-Commodore Amiga - (c) 1985, Commodore Bussines Machines Co.
+Amiga Computer / Arcadia System - (c) 1988, Arcadia Systems.
 
-Preliminary driver by:
+Driver by:
 
-Ernesto Corvi
-ernesto@imagina.com
+Ernesto Corvi and Mariusz Wojcieszek
 
 ***************************************************************************/
 
@@ -12,10 +11,11 @@ ernesto@imagina.com
 #include "vidhrdw/generic.h"
 #include "includes/amiga.h"
 
+extern custom_regs_def custom_regs;
 #define DT_COLOR_WHITE 0;
 
 struct update_regs_def {
-/* display window */
+/* display window */	
 	int v_start;
 	int v_stop;
 	int h_start;
@@ -225,42 +225,42 @@ INLINE int copper_update( int x_pos, int y_pos, int *end_x ) {
 
 ***************************************************************************/
 
-static void amiga_sprite_set_pos( int spritenum, unsigned short data ) {
-
+void amiga_sprite_set_pos( int spritenum, unsigned short data ) {
+	
 	update_regs.sprite_v_start[spritenum] &= 0x100;
 	update_regs.sprite_v_start[spritenum] |= data >> 8;
-
+	
 	update_regs.sprite_h_start[spritenum] &= 0x01;
 	update_regs.sprite_h_start[spritenum] |= ( data << 1 ) & 0x1fe;
 
 }
 
-static void amiga_sprite_set_ctrl( int spritenum, unsigned short data ) {
+void amiga_sprite_set_ctrl( int spritenum, unsigned short data ) {
 	int i;
-
+	
 	update_regs.sprite_h_start[spritenum] &= 0x1fe;
 	update_regs.sprite_h_start[spritenum] |= data & 1;
-
+	
 	update_regs.sprite_v_start[spritenum] &= 0xff;
 	update_regs.sprite_v_start[spritenum] |= ( data << 6 ) & 0x100;
-
+	
 	update_regs.sprite_v_stop[spritenum] = ( data << 7 ) & 0x100;
 	update_regs.sprite_v_stop[spritenum] |= data >> 8;
 
 	if ( spritenum & 1 )
 		update_regs.sprite_attached[spritenum] = data & 0x80;
-
+	
 	/* safety */
 	if ( update_regs.sprite_v_start[spritenum] > update_regs.sprite_v_stop[spritenum] )
 		update_regs.sprite_v_stop[spritenum] = update_regs.sprite_v_start[spritenum];
-
+	
 	for( i = update_regs.sprite_v_start[spritenum]; i < update_regs.sprite_v_stop[spritenum]; i++ ) {
 		if ( i < Machine->drv->screen_height ) {
 			if ( update_regs.sprite_in_scanline[i] < ( update_regs.sprite_h_start[spritenum] + 16 ) )
 				 update_regs.sprite_in_scanline[i] = ( update_regs.sprite_h_start[spritenum] + 16 );
 		}
-	}
-}
+	}			
+}	
 
 void amiga_reload_sprite_info( int spritenum ) {
 
@@ -292,7 +292,7 @@ INLINE void amiga_render_sprite( int num, int x, int y, unsigned short *dst ) {
 		bit = 15 - ( x - update_regs.sprite_h_start[num] );
 
 		/* check for attached sprites */
-		if ( num < 7 && update_regs.sprite_attached[num+1] ) {
+		if ( num < 6 && update_regs.sprite_attached[num+1] ) {
 			unsigned short word[4];
 			int color, i;
 
@@ -339,7 +339,7 @@ INLINE void amiga_render_sprite( int num, int x, int y, unsigned short *dst ) {
 
 INLINE void amiga_display_msg (struct mame_bitmap *bitmap, const char *str ) {
 	static struct DisplayText dt[2];
-
+	
 	if ( update_regs.once_per_frame == 0 ) {
 		dt[0].text = str;
 		dt[0].color = DT_COLOR_WHITE;
@@ -354,7 +354,7 @@ INLINE void amiga_display_msg (struct mame_bitmap *bitmap, const char *str ) {
 
 INLINE void update_modulos ( int planes ) {
 	int i;
-
+		
 	for ( i = 0; i < planes; i++ )
 		if ( i & 1 )
 			custom_regs.BPLPTR[i] += custom_regs.BPL2MOD;
@@ -371,8 +371,8 @@ INLINE void init_update_regs( void ) {
 		update_regs.h_start	= custom_regs.DIWSTRT & 0xff;
 		update_regs.old_DIWSTRT = custom_regs.DIWSTRT;
 	}
-
-	if ( update_regs.old_DIWSTOP != custom_regs.DIWSTOP ) {
+	
+	if ( update_regs.old_DIWSTOP != custom_regs.DIWSTOP ) {	
 		/* display window */
 		update_regs.v_stop = ( custom_regs.DIWSTOP >> 8 ) & 0xff;
 		update_regs.v_stop |= ( ( update_regs.v_stop << 1 ) ^ 0x0100 ) & 0x0100; /* bit 8 = !bit 7 */
@@ -385,7 +385,7 @@ INLINE void init_update_regs( void ) {
 		update_regs.fetch_count = 0;
 		update_regs.old_DDFSTRT = custom_regs.DDFSTRT;
 	}
-
+		
 	/* display data fetch */
 	if ( custom_regs.BPLCON0 & BPLCON0_HIRES ) {
 		ddf_color_clocks_offs = 9; /* 4.5 color clocks * 2 in hi res */
@@ -394,7 +394,7 @@ INLINE void init_update_regs( void ) {
 		ddf_color_clocks_offs = 17; /* 8.5 color clocks * 2 in lo res */
 		ddf_res_offs = 3;
 	}
-
+	
 	update_regs.ddf_start_pixel = ( custom_regs.DDFSTRT << 1 ) + ddf_color_clocks_offs;
 	update_regs.ddf_word_count = ( -( custom_regs.DDFSTRT - custom_regs.DDFSTOP - 12 ) ) >> ddf_res_offs;
 
@@ -402,14 +402,14 @@ INLINE void init_update_regs( void ) {
 		update_regs.back_color = Machine->pens[custom_regs.COLOR[0]];
 		update_regs.old_COLOR0 = custom_regs.COLOR[0];
 	}
-
+	
 	update_regs.sprite_dma_enabled = ( custom_regs.DMACON & ( DMACON_SPREN | DMACON_DMAEN ) ) == ( DMACON_SPREN | DMACON_DMAEN );
-}
+}	
 
 /***********************************************************************************
 
 	Common update stuff coming. (aka abusing the preprocessor)
-
+	
 ***********************************************************************************/
 #define BEGIN_UPDATE( name ) \
 static void name(struct mame_bitmap *bitmap, unsigned short *dst, int planes, int x, int y, int min_x ) { \
@@ -498,13 +498,13 @@ static void name(struct mame_bitmap *bitmap, unsigned short *dst, int planes, in
 /***********************************************************************************
 
 	Low Resolution handlers
-
+	
 ***********************************************************************************/
 
 BEGIN_UPDATE( render_pixel_lores ) {
 	/* now we're ready to render it */
 	int color = 0;
-
+	
 	for ( i = 0; i < planes; i++ ) {
 		color |= ( ( ( custom_regs.BPLxDAT[i] ) >> update_regs.current_bit ) & 1 ) << i;
 	}
@@ -533,13 +533,13 @@ UNIMPLEMENTED( render_pixel_lores_lace_sprites )
 /***********************************************************************************
 
 	High Resolution handlers
-
+	
 ***********************************************************************************/
 
 BEGIN_UPDATE( render_pixel_hires ) {
 	/* now we're ready to render it */
 	int color = 0;
-
+	
 	for ( i = 0; i < planes; i++ ) {
 		color |= ( ( ( custom_regs.BPLxDAT[i] ) >> update_regs.current_bit ) & 1 ) << i;
 	}
@@ -551,7 +551,7 @@ BEGIN_UPDATE( render_pixel_hires ) {
 BEGIN_UPDATE_WITH_SPRITES( render_pixel_hires_sprites ) {
 	/* now we're ready to render it */
 	int color = 0;
-
+	
 	for ( i = 0; i < planes; i++ ) {
 		color |= ( ( ( custom_regs.BPLxDAT[i] ) >> update_regs.current_bit ) & 1 ) << i;
 	}
@@ -568,7 +568,7 @@ UNIMPLEMENTED( render_pixel_hires_lace_sprites )
 /***********************************************************************************
 
 	Dual Playfield handlers
-
+	
 ***********************************************************************************/
 
 BEGIN_UPDATE( render_pixel_dualplayfield_lores ) {
@@ -583,12 +583,12 @@ BEGIN_UPDATE( render_pixel_dualplayfield_lores ) {
 			color[0] |= ( ( ( custom_regs.BPLxDAT[i] ) >> update_regs.current_bit ) & 1 ) << ( i >> 1 );
 		}
 	}
-
+	
 	if ( color[0] || color[1] ) { /* if theres a pixel to draw */
 		if ( custom_regs.BPLCON2 & 0x40 ) { /* check wich playfield has priority */
 			if ( color[1] )
 				dst[x] = Machine->pens[custom_regs.COLOR[color[1]+8]];
-			else
+			else			
 				dst[x] = Machine->pens[custom_regs.COLOR[color[0]]];
 		} else {
 			if ( color[0] )
@@ -611,7 +611,7 @@ UNIMPLEMENTED( render_pixel_dualplayfield_hires_lace_sprites )
 /***********************************************************************************
 
 	HAM handlers
-
+	
 ***********************************************************************************/
 
 UNIMPLEMENTED( render_pixel_ham )
@@ -670,30 +670,26 @@ static char mode_names[20][48] = {
 #endif
 
 INLINE int get_mode( void ) {
-
+	
 	int ret = 0;
-
+	
 	ret += ( custom_regs.BPLCON0 & BPLCON0_LACE ) ? 5 : 0;
-
+	
 	if ( custom_regs.BPLCON0 & BPLCON0_HOMOD )
 		return ( ret + 4 );
-
+	
 	ret += ( custom_regs.BPLCON0 & BPLCON0_HIRES ) ? 1 : 0;
 	ret += ( custom_regs.BPLCON0 & BPLCON0_DBLPF ) ? 2 : 0;
-
+	
 	return ret;
 }
 
-VIDEO_UPDATE( amiga )
+VIDEO_UPDATE(amiga)
 {
 	int planes = 0, sw = Machine->drv->screen_width;
 	int min_x = Machine->visible_area.min_x;
 	int y, x, start_x, end_x, line_done;
 	unsigned short *dst;
-
-#if 0
-	int mode = 0;
-#endif
 
 	update_regs.once_per_frame = 0;
 
@@ -703,11 +699,11 @@ VIDEO_UPDATE( amiga )
 	/* normalize some register values */
 	if ( custom_regs.DDFSTOP < custom_regs.DDFSTRT )
 		custom_regs.DDFSTOP = custom_regs.DDFSTRT;
-
+	
 	for ( y = 0; y < Machine->drv->screen_height; y++ ) {
 		int bitplane_dma_disabled;
 		render_pixel_def local_render;
-
+		
 		/* start of a new line, signal we're not done with it and fill up vars */
 		line_done = 0;
 		start_x = 0;
@@ -718,28 +714,28 @@ VIDEO_UPDATE( amiga )
 
 		/* make sure we complete the line */
 		do {
-
+			
 			/* start of a new line... check if the copper is (still) enabled */
 			line_done = copper_update( start_x, y, &end_x );
-
+			
 			if ( line_done )
 				end_x = sw;
-
+			
 			/* precaulculate some update registers */
 			init_update_regs();
-
+			
 			/* get the number of planes */
 			planes = ( custom_regs.BPLCON0 & ( BPLCON0_BPU0 | BPLCON0_BPU1 | BPLCON0_BPU2 ) ) >> 12;
 
 			/* precalculate if the bitplane dma is enabled */
 			bitplane_dma_disabled = ( custom_regs.DMACON & ( DMACON_BPLEN | DMACON_DMAEN ) ) != ( DMACON_BPLEN | DMACON_DMAEN );
-
-
+			
+			
 			/***************************************************************************
 				First we check for a number of conditions to see if we can render image
 				pixels yet. Otherwise, we fill with the background color.
 			 **************************************************************************/
-
+			
 			if ( bitplane_dma_disabled || planes == 0 || y < update_regs.v_start || y >= update_regs.v_stop ) {
 				for ( x = start_x; x < end_x; x++ )
 					dst[x] = update_regs.back_color;
@@ -748,11 +744,11 @@ VIDEO_UPDATE( amiga )
 					local_render = render_pixel[get_mode()+10];
 				else
 					local_render = render_pixel[get_mode()];
-
+				
 				for ( x = start_x; x < end_x; x++ )
 					(*local_render)( bitmap, dst, planes, x, y, min_x );
 			}
-
+			
 			/* now we start from where we left off */
 			start_x = end_x;
 
@@ -760,7 +756,7 @@ VIDEO_UPDATE( amiga )
 
 		if ( y >= update_regs.v_start && y < update_regs.v_stop )
 			update_modulos( planes ); /* update modulos */
-
+		
 		update_regs.sprite_in_scanline[y] = 0;
 	}
 }
@@ -785,7 +781,7 @@ PALETTE_INIT( amiga )
 	}
 }
 
-VIDEO_START( amiga )
+VIDEO_START(amiga)
 {
 	/* init cached data */
 	update_regs.old_COLOR0 = -1;
@@ -802,4 +798,3 @@ VIDEO_START( amiga )
 
 	return 0;
 }
-

@@ -1,3 +1,12 @@
+/***************************************************************************
+Amiga Computer / Arcadia Game System
+
+Driver by:
+
+Ernesto Corvi & Mariusz Wojcieszek
+
+***************************************************************************/
+
 #ifndef __AMIGA_H__
 #define __AMIGA_H__
 
@@ -78,40 +87,24 @@ typedef struct {
 #define BPLCON0_HIRES	0x8000
 
 /* prototypes */
-void copper_setpc( unsigned long pc );
-/*void amiga_custom_w( int offs, int data );*/
-void amiga_reload_sprite_info( int spritenum );
+/* machine */
+extern void copper_setpc( unsigned long pc );
+extern WRITE16_HANDLER(amiga_custom_w);
+extern void amiga_reload_sprite_info( int spritenum );
+extern READ16_HANDLER(amiga_cia_r);
+extern WRITE16_HANDLER(amiga_cia_w);
+extern READ16_HANDLER(amiga_custom_r);
+extern WRITE16_HANDLER(amiga_custom_w);
+extern MACHINE_INIT(amiga);
+extern void amiga_cia_issue_index( void );
 
+extern data16_t *amiga_expansion_ram;
+extern data16_t *amiga_autoconfig_mem;
 
-/**************************************************************************
-
-	Prototypes
-
-***************************************************************************/
-
-/* from machine/amiga.c */
-READ16_HANDLER  ( amiga_cia_r );
-WRITE16_HANDLER ( amiga_cia_w );
-READ16_HANDLER  ( amiga_custom_r );
-WRITE16_HANDLER ( amiga_custom_w );
-MACHINE_INIT( amiga );
-INTERRUPT_GEN( amiga_vblank_irq );
-
-DEVICE_INIT(amiga_fdc);
-DEVICE_LOAD(amiga_fdc);
-
-/* from vidhrdw/amiga.c */
-VIDEO_START( amiga );
-VIDEO_UPDATE( amiga );
-PALETTE_INIT( amiga );
-
-/* from vidhrdw */
-void copper_setpc( unsigned long pc );
-void copper_enable( void );
-
-/* required prototype */
-/*void amiga_custom_w( int offs, int data );*/
-
-extern custom_regs_def custom_regs;
+/* vidhrdw */
+extern INTERRUPT_GEN(amiga_vblank_irq);
+extern VIDEO_UPDATE(amiga);
+extern VIDEO_START(amiga);
+extern PALETTE_INIT(amiga);
 
 #endif /* __AMIGA_H__ */
