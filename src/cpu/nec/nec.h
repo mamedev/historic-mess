@@ -89,8 +89,8 @@ typedef enum { AH,AL,CH,CL,DH,DL,BH,BL,SPH,SPL,BPH,BPL,IXH,IXL,IYH,IYL } BREGS;
 #define WriteByte(ea,val) { nec_ICount-=7; cpu_writemem20((ea),val); }
 #define WriteWord(ea,val) { nec_ICount-=11; cpu_writemem20((ea),(BYTE)(val)); cpu_writemem20(((ea)+1),(val)>>8); }
 
-#define read_port(port) cpu_readport(port)
-#define write_port(port,val) cpu_writeport(port,val)
+#define read_port(port) cpu_readport16(port)
+#define write_port(port,val) cpu_writeport16(port,val)
 
 #define FETCH (cpu_readop_arg((I.sregs[CS]<<4)+I.ip++))
 #define FETCHOP (cpu_readop((I.sregs[CS]<<4)+I.ip++))
@@ -172,7 +172,6 @@ typedef enum { AH,AL,CH,CL,DH,DL,BH,BL,SPH,SPL,BPH,BPL,IXH,IXL,IYH,IYL } BREGS;
 		int tmp;							\
 		I.regs.b[AL] = tmp = I.regs.b[AL] + param1;	\
 		I.AuxVal = 1;						\
-		I.CarryVal = tmp & 0x100;			\
 	}										\
 	if (CF || (I.regs.b[AL] > 0x9f))		\
 	{										\

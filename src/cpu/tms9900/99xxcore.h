@@ -515,13 +515,6 @@ static void reset_decrementer(void);
 	/*8-bit external data bus, with on-chip 16-bit RAM, and 16-bit address bus*/
 	/*The code is complex, so we use functions rather than macros*/
 
-	/* Why aren't these in memory.h ??? */
-#ifdef LSB_FIRST
-	#define BYTE_XOR_BE(a) ((a) ^ 1)
-#else
-	#define BYTE_XOR_BE(a) (a)
-#endif
-
 	static int readword(int addr)
 	{
 		if (addr < 0xf000)
@@ -780,6 +773,12 @@ int TMS99XX_EXECUTE(int cycles)
 
 				#if 0		/* Trace */
 				logerror("> PC %4.4x :%4.4x %4.4x : R=%4.4x %4.4x %4.4x %4.4x %4.4x %4.4x %4.4x %4.4x %4.4x %4.4x%4.4x %4.4x %4.4x %4.4x %4.4x %4.4x :T=%d\n",I.PC,I.STATUS,I.WP,I.FR[0],I.FR[1],I.FR[2],I.FR[3],I.FR[4],I.FR[5],I.FR[6],I.FR[7],I.FR[8],I.FR[9],I.FR[10],I.FR[11],I.FR[12],I.FR[13],I.FR[14],I.FR[15],TMS99XX_ICOUNT);
+					#if 0	/* useful with TI99/4a driver */
+					{
+						extern int gpl_addr;
+						logerror("> GPL pointer %4.4x\n", gpl_addr);
+					}
+					#endif
 				#endif
 
 				MAME_Debug();
@@ -1464,6 +1463,13 @@ static void set_flag1(int val)
 
 #endif
 
+#if (TMS99XX_MODEL == TMS9900_ID)
+#define WRITEPORT(Port, data) cpu_writeport16bew_word((Port)<<1, (data))	
+#else
+#define WRITEPORT(Port, data) cpu_writeport16(Port, data)
+#endif
+
+
 /*
 	performs a normal write to CRU bus (used by SBZ, SBO, LDCR : address range 0 -> 0xFFF)
 */
@@ -1514,7 +1520,7 @@ static void writeCRU(int CRUAddr, int Number, UINT16 Value)
 		else
 			/* External CRU */
 #endif
-		cpu_writeport(CRUAddr, (Value & 0x01));
+		WRITEPORT(CRUAddr, (Value & 0x01));
 		Value >>= 1;
 		CRUAddr = (CRUAddr + 1) & wCRUAddrMask;
 	}
@@ -1535,11 +1541,11 @@ static void external_instruction_notify(int ext_op_ID)
 #if 1
 	/* I guess we can support this like normal CRU operations */
 #if (TMS99XX_MODEL == TMS9900_ID)
-	cpu_writeport(ext_op_ID << 12, 0); /* or is it 1 ??? */
+	WRITEPORT(ext_op_ID << 12, 0); /* or is it 1 ??? */
 #elif (TMS99XX_MODEL == TMS9980_ID)
-	cpu_writeport((ext_op_ID & 3) << 11, (ext_op_ID & 4) ? 1 : 0);
+	cpu_writeport16((ext_op_ID & 3) << 11, (ext_op_ID & 4) ? 1 : 0);
 #elif (TMS99XX_MODEL == TMS9995_ID)
-	cpu_writeport(ext_op_ID << 15, 0); /* or is it 1 ??? */
+	cpu_writeport16(ext_op_ID << 15, 0); /* or is it 1 ??? */
 #else
 	#warning "I don't know how your processor handle external opcodes (maybe you don't need them, though)."
 #endif
@@ -1581,8 +1587,10 @@ static void external_instruction_notify(int ext_op_ID)
 	read at the same address.
 	This seems to be impossible to emulate efficiently.
 */
-#if (TMS99XX_MODEL != TMS9995_ID)
-#define READPORT(Port) cpu_readport(Port)
+#if (TMS99XX_MODEL == TMS9900_ID)
+#define READPORT(Port) cpu_readport16bew_word((Port)<<1)
+#elif (TMS99XX_MODEL != TMS9995_ID)
+#define READPORT(Port) cpu_readport16(Port)
 #else
 /* on tms9995, we have to handle internal CRU port */
 int READPORT(int Port)
@@ -1596,12 +1604,12 @@ int READPORT(int Port)
 	else if (Port == 0x1FD)
 		/* MID flag, and extrernal devices */
 		if (I.MID_flag)
-			return cpu_readport(Port) | 0x10;
+			return cpu_readport16(Port) | 0x10;
 		else
-			return cpu_readport(Port) & ~ 0x10;
+			return cpu_readport16(Port) & ~ 0x10;
 	else
 		/* extrernal devices */
-		return cpu_readport(Port);
+		return cpu_readport16(Port);
 }
 #endif
 
