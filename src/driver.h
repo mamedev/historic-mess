@@ -231,6 +231,9 @@ enum
 #if (HAS_MIPS)
 	CPU_MIPS,
 #endif
+#if (HAS_SC61860)
+	CPU_SC61860,
+#endif
     CPU_COUNT
 };
 
@@ -273,7 +276,10 @@ struct MachineDriver
 
     /* video hardware */
 	int screen_width,screen_height;
-	struct rectangle visible_area;
+	struct rectangle default_visible_area;	/* the visible area can be changed at */
+									/* run time, but it should never be larger than the */
+									/* one specified here, in order not to force the */
+									/* OS dependant code to resize the display window. */
 	struct GfxDecodeInfo *gfxdecodeinfo;
 	unsigned int total_colors;	/* palette is 3*total_colors bytes long */
 	unsigned int color_table_len;	/* length in shorts of the color lookup table */
@@ -408,8 +414,9 @@ struct GameDriver
 #define NOT_A_DRIVER				0x4000	/* set by the fake "root" driver_ and by "containers" */
 											/* e.g. driver_neogeo. */
 #ifdef MESS
-#define GAME_COMPUTER	0x8000			/* Driver is a computer (needs full keyboard) */
-#define GAME_ALIAS		NOT_A_DRIVER	/* Driver is only an alias for an existing model */
+#define GAME_COMPUTER               0x8000  /* Driver is a computer (needs full keyboard) */
+#define GAME_COMPUTER_MODIFIED      0x0800	/* Official? Hack */
+#define GAME_ALIAS                  NOT_A_DRIVER	/* Driver is only an alias for an existing model */
 #endif
 
 

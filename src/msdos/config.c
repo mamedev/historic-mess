@@ -72,6 +72,7 @@ extern char *artworkdir, *screenshotdir, *alternate_name;
 #ifdef MESS
 /* path to the CRC database files */
 char *crcdir;
+char *cheatdir;
 #endif
 
 /* from video.c, for centering tweaked modes */
@@ -450,6 +451,7 @@ void parse_cmdline (int argc, char **argv, int game_index)
 	artworkdir = get_string ("directory", "artwork", NULL, "ARTWORK");
  	#ifdef MESS
 		crcdir = get_string ("directory", "crc", NULL, "CRC");
+		cheatdir = get_string ("directory", "cheat", NULL, "CHEAT");
  	#endif
 
 	tmpstr = get_string ("config", "language", NULL, "english");
@@ -576,6 +578,9 @@ void parse_cmdline (int argc, char **argv, int game_index)
 		tmp = strtok (0, "xX");
 		if (tmp)
 			gfx_height = atoi (tmp);
+
+		options.vector_width = gfx_width;
+		options.vector_height = gfx_height;
 	}
 
 	/* convert joystick name into an Allegro-compliant joystick signature */
