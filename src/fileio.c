@@ -4,6 +4,8 @@
 
 ***************************************************************************/
 
+#include <zlib.h>
+
 #include <assert.h>
 #include "driver.h"
 #include "unzip.h"
@@ -80,16 +82,6 @@ struct _mame_file
 	PROTOTYPES
 ***************************************************************************/
 
-#ifndef ZEXPORT
-#ifdef _MSC_VER
-#define ZEXPORT __stdcall
-#else
-#define ZEXPORT
-#endif
-#endif
-
-extern unsigned int ZEXPORT crc32(unsigned int crc, const UINT8 *buf, unsigned int len);
-
 static mame_file *generic_fopen(int pathtype, const char *gamename, const char *filename, const char* hash, UINT32 flags);
 static const char *get_extension_for_filetype(int filetype);
 static int checksum_file(int pathtype, int pathindex, const char *file, UINT8 **p, UINT64 *size, char* hash);
@@ -150,7 +142,7 @@ mame_file *mame_fopen(const char *gamename, const char *filename, int filetype, 
 				int flags = FILEFLAG_ALLOW_ABSOLUTE | FILEFLAG_ZIP_PATHS;
 				switch(openforwrite) {
 				case OSD_FOPEN_READ:   
-					flags |= FILEFLAG_OPENREAD | FILEFLAG_HASH;   
+					flags |= FILEFLAG_OPENREAD /*| FILEFLAG_HASH*/;
 					break;   
 				case OSD_FOPEN_WRITE:   
 					flags |= FILEFLAG_OPENWRITE;   
@@ -966,7 +958,7 @@ static mame_file *generic_fopen(int pathtype, const char *gamename, const char *
 #ifdef MESS
 			if (flags & FILEFLAG_ZIP_PATHS)
 			{
-				int path_info;
+				int path_info = PATH_NOT_FOUND;
 				const char *oldname = name;
 				const char *zipentryname;
 				char *newname = NULL;
@@ -974,22 +966,24 @@ static mame_file *generic_fopen(int pathtype, const char *gamename, const char *
 				char *s;
 				UINT32 ziplength;
 
-				while((path_info = osd_get_path_info(pathtype, pathindex, oldname)) == PATH_NOT_FOUND)
+				while ((oldname[0]) && ((path_info = osd_get_path_info(pathtype, pathindex, oldname)) == PATH_NOT_FOUND))
 				{
+					/* get name of parent directory into newname & oldname */
 					newname = osd_dirname(oldname);
 					if (oldnewname)
 						free(oldnewname);
 					oldname = oldnewname = newname;
 					if (!newname)
 						break;
-					
+
+					/* remove any trailing path separator if needed */
 					for (s = newname + strlen(newname) - 1; s >= newname && osd_is_path_separator(*s); s--)
 						*s = '\0';
 				}
 
 				if (newname)
 				{
-					if (path_info == PATH_IS_FILE)
+					if ((oldname[0]) &&(path_info == PATH_IS_FILE))
 					{
 						zipentryname = name + strlen(newname);
 						while(osd_is_path_separator(*zipentryname))
@@ -1038,11 +1032,11 @@ static mame_file *generic_fopen(int pathtype, const char *gamename, const char *
 					UINT32 crc = 0;
 
 					/* Since this is a .ZIP file, we extract the CRC from the expected hash
-					   (if any), so that we can load by CRC if needed. */
-					if (hash)
+					   (if any), so that we can load by CRC if needed. We must check that
+					   the hash really contains a CRC, because it could be a NO_DUMP rom
+					   for which we do not know the CRC yet. */
+					if (hash && hash_data_extract_binary_checksum(hash, HASH_CRC, crcs) != 0)
 					{
-						hash_data_extract_binary_checksum(hash, HASH_CRC, crcs);
-
 						/* Store the CRC in a single DWORD */
 						crc = ((unsigned long)crcs[0] << 24) |
 							  ((unsigned long)crcs[1] << 16) |

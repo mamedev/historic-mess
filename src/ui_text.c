@@ -169,13 +169,15 @@ const char * default_text[] =
 	"Load Memory Card",
 	"Eject Memory Card",
 	"Create Memory Card",
+#ifdef MESS
 	"Call Memory Card Manager (RESET)",
+#endif
 	"Failed To Load Memory Card!",
 	"Load OK!",
 	"Memory Card Ejected!",
 	"Memory Card Created OK!",
 	"Failed To Create Memory Card!",
-	"(It already exists?)",
+	"(It already exists ?)",
 	"DAMN!! Internal Error!",
 
 	/* cheats */
