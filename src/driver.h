@@ -6,8 +6,8 @@
 
 ***************************************************************************/
 
-#ifndef DRIVER_H
-#define DRIVER_H
+#ifndef __DRIVER_H__
+#define __DRIVER_H__
 
 
 /***************************************************************************
@@ -31,9 +31,9 @@
 #define VIDEO_STOP(name)		void video_stop_##name(void)
 #define VIDEO_EOF(name)			void video_eof_##name(void)
 #ifdef MESS
-#define VIDEO_UPDATE(name)		void video_update_##name(struct mame_bitmap *bitmap, const struct rectangle *cliprect, int *do_skip)
+#define VIDEO_UPDATE(name)		void video_update_##name(int screen, struct mame_bitmap *bitmap, const struct rectangle *cliprect, int *do_skip)
 #else
-#define VIDEO_UPDATE(name)		void video_update_##name(struct mame_bitmap *bitmap, const struct rectangle *cliprect)
+#define VIDEO_UPDATE(name)		void video_update_##name(int screen, struct mame_bitmap *bitmap, const struct rectangle *cliprect)
 #endif
 
 /* NULL versions */
@@ -54,10 +54,9 @@
 
 ***************************************************************************/
 
-#include "osd_cpu.h"
+#include "mamecore.h"
 #include "memory.h"
 #include "mamedbg.h"
-#include "osdepend.h"
 #include "mame.h"
 #include "common.h"
 #include "drawgfx.h"
@@ -171,7 +170,7 @@
 	if (cpu)															\
 	{																	\
 		cpu->timed_interrupt = func;									\
-		cpu->timed_interrupts_per_second = (rate);						\
+		cpu->timed_interrupt_period = (rate);							\
 	}																	\
 
 
@@ -355,9 +354,9 @@ struct InternalMachineDriver
 	void (*video_stop)(void);
 	void (*video_eof)(void);
 #ifdef MESS
-	void (*video_update)(struct mame_bitmap *bitmap, const struct rectangle *cliprect, int *do_skip);
+	void (*video_update)(int screen, struct mame_bitmap *bitmap, const struct rectangle *cliprect, int *do_skip);
 #else
-	void (*video_update)(struct mame_bitmap *bitmap,const struct rectangle *cliprect);
+	void (*video_update)(int screen, struct mame_bitmap *bitmap,const struct rectangle *cliprect);
 #endif
 
 	struct MachineSound sound[MAX_SOUND];
@@ -600,34 +599,4 @@ const struct GameDriver driver_##NAME =		\
 
 extern const struct GameDriver *drivers[];
 
-
-/***************************************************************************
-
-    Miscellaneous
-
-***************************************************************************/
-
-/* ensure that TRUE/FALSE are defined */
-#ifndef TRUE
-#define TRUE    1
-#endif
-
-#ifndef FALSE
-#define FALSE   0
-#endif
-
-/* Use to prevent warnings from GCC about overly-long integer constants. */
-#ifdef __GNUC__
-#define U64(val) val##ULL
-#define S64(val) val##LL
-#else
-#define U64(val) val
-#define S64(val) val
-#endif
-
-/* Suppress warnings about redefining the macro 'PPC' on LinuxPPC. */
-#ifdef PPC
-#undef PPC
-#endif
-
-#endif
+#endif	/* __DRIVER_H__ */

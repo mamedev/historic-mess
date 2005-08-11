@@ -254,7 +254,7 @@ static int ppc603_execute(int cycles)
 	UINT32 opcode;
 	ppc_icount = cycles;
 	ppc_tb_base_icount = cycles;
-	ppc_dec_base_icount = cycles;
+	ppc_dec_base_icount = cycles + ppc.dec_frac;
 
 	// check if decrementer exception occurs during execution
 	if ((UINT32)(DEC - ppc_icount) > (UINT32)(DEC))
@@ -288,7 +288,7 @@ static int ppc603_execute(int cycles)
 		if (MSR & MSR_IR)
 			opcode = ppc_readop_translated(ppc.pc);
 		else
-			opcode = ROPCODE64(ppc.pc);
+		opcode = ROPCODE64(ppc.pc);
 
 		ppc.npc = ppc.pc + 4;
 		switch(opcode >> 26)
@@ -314,6 +314,7 @@ static int ppc603_execute(int cycles)
 	ppc.tb += ((ppc_tb_base_icount - ppc_icount) / 4);
 
 	// update decrementer
+	ppc.dec_frac = ((ppc_dec_base_icount - ppc_icount) % (bus_freq_multiplier * 2));
 	DEC -= ((ppc_dec_base_icount - ppc_icount) / (bus_freq_multiplier * 2));
 
 	return cycles - ppc_icount;
