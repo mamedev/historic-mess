@@ -1,17 +1,18 @@
 /**********************************************************************
 
-	8259 PIC interface and emulation
+    8259 PIC interface and emulation
 
-	The 8259 is a programmable interrupt controller used to multiplex
-	interrupts for x86 and other computers.  The chip is set up by
-	writing a series of Initialization Command Words (ICWs) after which
-	the chip is operational and capable of dispatching interrupts.  After
-	this, Operation Command Words (OCWs) can be written to control further
-	behavior.
+    The 8259 is a programmable interrupt controller used to multiplex
+    interrupts for x86 and other computers.  The chip is set up by
+    writing a series of Initialization Command Words (ICWs) after which
+    the chip is operational and capable of dispatching interrupts.  After
+    this, Operation Command Words (OCWs) can be written to control further
+    behavior.
 
 **********************************************************************/
 
 #include "machine/pic8259.h"
+#include "memconv.h"
 
 #define IRQ_COUNT	8
 
@@ -31,7 +32,7 @@ typedef enum
 struct pic8259
 {
 	mame_timer *timer;
-	void (*set_int_line)(int interrupt);
+	void (*set_int_line)(int which, int interrupt);
 
 	pic8259_state_t state;
 
@@ -69,7 +70,7 @@ static void pic8259_timerproc(int which);
 
 
 /* initializer */
-int pic8259_init(int count, void (*set_int_line)(int interrupt))
+int pic8259_init(int count, void (*set_int_line)(int which, int interrupt))
 {
 	int i;
 
@@ -98,9 +99,8 @@ static void pic8259_timerproc(int which)
 	int irq;
 	UINT8 mask;
 
-
 	/* check the various IRQs */
-	for (irq = 0; irq < IRQ_COUNT; irq++) 
+	for (irq = 0; irq < IRQ_COUNT; irq++)
 	{
 		mask = 1 << irq;
 
@@ -118,12 +118,12 @@ static void pic8259_timerproc(int which)
 			if (LOG_GENERAL)
 				logerror("pic8259_timerproc(): PIC #%d triggering IRQ #%d\n", which, irq);
 			if (p->set_int_line)
-				p->set_int_line(1);
+				p->set_int_line(which, 1);
 			return;
 		}
 	}
 	if (p->set_int_line)
-		p->set_int_line(0);
+		p->set_int_line(which, 0);
 }
 
 
@@ -137,9 +137,6 @@ static void pic8259_set_timer(int which)
 
 void pic8259_set_irq_line(int which, int irq, int state)
 {
-	assert(irq >= 0);
-	assert(irq < IRQ_COUNT);
-
 	if (state)
 	{
 		/* setting IRQ line */
@@ -148,7 +145,7 @@ void pic8259_set_irq_line(int which, int irq, int state)
 			if (LOG_GENERAL)
 				logerror("pic8259_set_irq_line(): PIC #%d set IRQ line #%d\n", which, irq);
 
-			pic[which].irq_lines |= 1 << irq;		
+			pic[which].irq_lines |= 1 << irq;
 			pic[which].pending |= 1 << irq;
 			pic8259_set_timer(which);
 		}
@@ -162,6 +159,7 @@ void pic8259_set_irq_line(int which, int irq, int state)
 				logerror("pic8259_set_irq_line(): PIC #%d cleared IRQ line #%d\n", which, irq);
 
 			pic[which].irq_lines &= ~(1 << irq);
+			pic8259_set_timer(which);
 		}
 	}
 }

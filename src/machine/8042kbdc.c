@@ -1,189 +1,190 @@
 /*********************************************************************
 
-	ibmat.c
+    ibmat.c
 
-	Code specific to fun IBM AT stuff
-
-
-	PeT's notes about various Power On Self Tests (POSTs)
-
-		at post
-		-------
-		f81d2 01
-		f82e6 05
-		f8356 07
-		f83e5 0a
-		f847e 0e
-		f8e7c 10
-		f8f3a 13
-		f9058 1a
-		f913a 1e
-		fa8ba 30
-		fa96c 36
-		fa9d3 3c
-		fa9f4 3e
-		ff122 50
-		ff226 5b
-		ff29f 5f
-		f9228 70
-		f92b2 74 ide?
-
-		ibm at bios
-		-----------
-		f0101 after switch to real mode jump back!!!!!!!!!!
-		jumping table
-		f0123
-		f098e memory tests
-		f10b4 ???
-		not reached
-		f1050
-		f1617
-		f0119
-		f10d8
-		f10b7 system board error
-
-		f019f
-		f025b
-		f02e6
-		f0323
-		f03b3 0e
-		f03d7 0f
-		f058d
-		at8042 signal timing test
-		sets errorcode!
-
-		f0655
-		f06a3 postcode 15
-		f06ba 16
-		f0747 18
-		f0763 enter pm! (0x81, 0x85)
-		f0766 1a
-		f07b3 first 640kb memory test
-		f084c 1c
-		f086e extended memory test
-		f0928 1f
-		f097d 20
-		???
-		f0ff4 34
-		???
-		f1675 f0
-		f16cb f2
-		illegal access trap test!!!!
-		f16fe f3
-		task descriptor test!!!!
-		f174a f4
-		f17af f5
-		f1800 f6 writing to non write segment
-		f1852 f7 arpl
-		f1880 f8 lar, lsl
-		f18ca fa
-		f10d8
-		f10ec 35
-		f1106 36
-		f1137 !!!!!!!keyboard test fails
-
-		f11aa 3a
-		f1240 3c harddisk controller test!!!
-		f13f3 3b
-		f1a6d xthdd bios init
-		f1429
-		f1462
-		f1493 40
-		f1532
-		keyboard lock
-		f1 to unlock
-		f155c
-		jumps to f0050 (reset)  without enabling of the a20 gate --> hangs
-		0412 bit 5 must be set to reach f1579
-		f1579
-		f15c3 41
-		f1621 43
-
-		routines
-		f1945 read cmos ram
-		f195f write to cmos al value ah
-		f1a3a poll 0x61 bit 4
-		f1a49 sets something in cmos ram
-		f1d30 switch to protected mode
-
-		neat
-		----
-		f80b9
-
-		at386
-		-----
-		fd28c fd
-		fd2c3 fc
-		f40dc
-		fd949
-		fd8e3
-		fd982
-		f4219 01
-		f4296 03
-		f42f3 04
-		f4377 05
-		f43ec 06
-		f4430 08
-		f6017 switches to PM
-		f4456 09
-		f55a2
-		f44ec 0d
-		f4557 20
-		f462d 27 my special friend, the keyboard controller once more
-		ed0a1
-		f4679 28
-		fa16a
-		f46d6
-		f4768 2c
-		f47f0 2e
-		f5081
-		fa16a
-		f9a83
-			Message: "Checksum Error on Extended CMOS"
-		f4840 34
-		f488c 35
-		reset
-		f48ee
-		f493e 3a
-		f49cd
-		f4fc7
-		fe842
-		f4a5a
-		f4b01 38
-			(Memory Test)
-		f4b41 3b
-		f4c0f
-			Message: "Invalid configuration information - please run SETUP program"
-		f4c5c
-			f86fc
-			f8838
-		f4c80
-		f4ca2
-		f4d4c
-		f4e15	(int 19h)
-
-		[f9a83 output text at return address!, return after text]
+    Code specific to fun IBM AT stuff
 
 
-		at486
-		-----
-		f81a5 03
-		f1096 0f 09 wbinvd i486 instruction
+    PeT's notes about various Power On Self Tests (POSTs)
+
+        at post
+        -------
+        f81d2 01
+        f82e6 05
+        f8356 07
+        f83e5 0a
+        f847e 0e
+        f8e7c 10
+        f8f3a 13
+        f9058 1a
+        f913a 1e
+        fa8ba 30
+        fa96c 36
+        fa9d3 3c
+        fa9f4 3e
+        ff122 50
+        ff226 5b
+        ff29f 5f
+        f9228 70
+        f92b2 74 ide?
+
+        ibm at bios
+        -----------
+        f0101 after switch to real mode jump back!!!!!!!!!!
+        jumping table
+        f0123
+        f098e memory tests
+        f10b4 ???
+        not reached
+        f1050
+        f1617
+        f0119
+        f10d8
+        f10b7 system board error
+
+        f019f
+        f025b
+        f02e6
+        f0323
+        f03b3 0e
+        f03d7 0f
+        f058d
+        at8042 signal timing test
+        sets errorcode!
+
+        f0655
+        f06a3 postcode 15
+        f06ba 16
+        f0747 18
+        f0763 enter pm! (0x81, 0x85)
+        f0766 1a
+        f07b3 first 640kb memory test
+        f084c 1c
+        f086e extended memory test
+        f0928 1f
+        f097d 20
+        ???
+        f0ff4 34
+        ???
+        f1675 f0
+        f16cb f2
+        illegal access trap test!!!!
+        f16fe f3
+        task descriptor test!!!!
+        f174a f4
+        f17af f5
+        f1800 f6 writing to non write segment
+        f1852 f7 arpl
+        f1880 f8 lar, lsl
+        f18ca fa
+        f10d8
+        f10ec 35
+        f1106 36
+        f1137 !!!!!!!keyboard test fails
+
+        f11aa 3a
+        f1240 3c harddisk controller test!!!
+        f13f3 3b
+        f1a6d xthdd bios init
+        f1429
+        f1462
+        f1493 40
+        f1532
+        keyboard lock
+        f1 to unlock
+        f155c
+        jumps to f0050 (reset)  without enabling of the a20 gate --> hangs
+        0412 bit 5 must be set to reach f1579
+        f1579
+        f15c3 41
+        f1621 43
+
+        routines
+        f1945 read cmos ram
+        f195f write to cmos al value ah
+        f1a3a poll 0x61 bit 4
+        f1a49 sets something in cmos ram
+        f1d30 switch to protected mode
+
+        neat
+        ----
+        f80b9
+
+        at386
+        -----
+        fd28c fd
+        fd2c3 fc
+        f40dc
+        fd949
+        fd8e3
+        fd982
+        f4219 01
+        f4296 03
+        f42f3 04
+        f4377 05
+        f43ec 06
+        f4430 08
+        f6017 switches to PM
+        f4456 09
+        f55a2
+        f44ec 0d
+        f4557 20
+        f462d 27 my special friend, the keyboard controller once more
+        ed0a1
+        f4679 28
+        fa16a
+        f46d6
+        f4768 2c
+        f47f0 2e
+        f5081
+        fa16a
+        f9a83
+            Message: "Checksum Error on Extended CMOS"
+        f4840 34
+        f488c 35
+        reset
+        f48ee
+        f493e 3a
+        f49cd
+        f4fc7
+        fe842
+        f4a5a
+        f4b01 38
+            (Memory Test)
+        f4b41 3b
+        f4c0f
+            Message: "Invalid configuration information - please run SETUP program"
+        f4c5c
+            f86fc
+            f8838
+        f4c80
+        f4ca2
+        f4d4c
+        f4e15   (int 19h)
+
+        [f9a83 output text at return address!, return after text]
+
+
+        at486
+        -----
+        f81a5 03
+        f1096 0f 09 wbinvd i486 instruction
 
 *********************************************************************/
 
 
 #include "driver.h"
+#include "memconv.h"
 
 #include "machine/pckeybrd.h"
 #include "machine/8042kbdc.h"
 #include "machine/pit8253.h"
-#include "includes/pcshare.h"
+#include "machine/pcshare.h"
 
 
 /***************************************************************************
 
-	Constants & macros
+    Constants & macros
 
 ***************************************************************************/
 
@@ -197,7 +198,7 @@
 
 /***************************************************************************
 
-	Type definitions
+    Type definitions
 
 ***************************************************************************/
 
@@ -237,7 +238,7 @@ static void at_8042_check_keyboard(void);
 
 /***************************************************************************
 
-	Code
+    Code
 
 ***************************************************************************/
 
@@ -271,7 +272,7 @@ void kbdc8042_init(const struct kbdc8042_interface *intf)
 	kbdc8042.keyboard_interrupt = intf->keyboard_interrupt;
 
 	/* ibmat bios wants 0x20 set! (keyboard locked when not set) 0x80 */
-	kbdc8042.inport = 0xa0;	
+	kbdc8042.inport = 0xa0;
 	at_8042_set_outport(0xfe, 1);
 
 	timer_pulse(TIME_IN_HZ(60), 0, kbdc8042_time);
@@ -325,22 +326,22 @@ static void at_8042_clear_keyboard_received(void)
  * Port 0x64 Read Status Register
  *           Write operation for controller
  *
- *	Output port controller:
- *		7: Keyboard data
- *		6: Keyboard clock
- *		5: Mouse buffer full
- *		4: Keyboard buffer full
- *		3: Mouse clock
- *		2: Mouse data
- *		1: 0 A20 cleared
- *		0: 0 system reset
+ *  Output port controller:
+ *      7: Keyboard data
+ *      6: Keyboard clock
+ *      5: Mouse buffer full
+ *      4: Keyboard buffer full
+ *      3: Mouse clock
+ *      2: Mouse data
+ *      1: 0 A20 cleared
+ *      0: 0 system reset
  *
- *	Input port controller
- *		7: 0=Keyboard Locked
- *		6: 1 = Monochrome 0 = Color (true for real IBM, clones are undefined and use CMOS RAM data)
- *		5..2: reserved
- *		1: Mouse data in
- *		0: Keyboard data in
+ *  Input port controller
+ *      7: 0=Keyboard Locked
+ *      6: 1 = Monochrome 0 = Color (true for real IBM, clones are undefined and use CMOS RAM data)
+ *      5..2: reserved
+ *      1: Mouse data in
+ *      0: Keyboard data in
  */
 
 READ8_HANDLER(kbdc8042_8_r)
@@ -442,15 +443,15 @@ WRITE8_HANDLER(kbdc8042_8_w)
 
 		case 1:
 			/* preceeded by writing 0xD1 to port 60h
-			 *	|7|6|5|4|3|2|1|0|  8042 Output Port
-			 *	 | | | | | | | `---- system reset line
-			 *	 | | | | | | `----- gate A20
-			 *	 | | | | `-------- undefined
-			 *	 | | | `--------- output buffer full
-			 *	 | | `---------- input buffer empty
-			 *	 | `----------- keyboard clock (output)
-			 *	 `------------ keyboard data (output)
-			 */
+             *  |7|6|5|4|3|2|1|0|  8042 Output Port
+             *   | | | | | | | `---- system reset line
+             *   | | | | | | `----- gate A20
+             *   | | | | `-------- undefined
+             *   | | | `--------- output buffer full
+             *   | | `---------- input buffer empty
+             *   | `----------- keyboard clock (output)
+             *   `------------ keyboard data (output)
+             */
 			at_8042_set_outport(data, 0);
 			break;
 
@@ -480,8 +481,10 @@ WRITE8_HANDLER(kbdc8042_8_w)
 		break;
 
 	case 1:
-		kbdc8042.speaker=data;
+		kbdc8042.speaker = data;
+#ifdef MESS
 		pc_sh_speaker(data&3);
+#endif /* MESS */
 		break;
 
 	case 4:
@@ -521,15 +524,15 @@ WRITE8_HANDLER(kbdc8042_8_w)
 			kbdc8042.keyboard.on = 1;
 			break;
 		case 0xc0:	/* read input port */
-			/*	|7|6|5|4|3 2 1 0|  8042 Input Port
-			 *	 | | | |    |    
-			 *	 | | | |    `------- undefined
-			 *	 | | | |
-			 *	 | | | `--------- 1=enable 2nd 256k of Motherboard RAM
-			 *	 | | `---------- 1=manufacturing jumper installed
-			 *	 | `----------- 1=primary display is MDA, 0=CGA
-			 *	 `------------ 1=keyboard not inhibited; 0=inhibited
-			 */
+			/*  |7|6|5|4|3 2 1 0|  8042 Input Port
+             *   | | | |    |
+             *   | | | |    `------- undefined
+             *   | | | |
+             *   | | | `--------- 1=enable 2nd 256k of Motherboard RAM
+             *   | | `---------- 1=manufacturing jumper installed
+             *   | `----------- 1=primary display is MDA, 0=CGA
+             *   `------------ 1=keyboard not inhibited; 0=inhibited
+             */
 			at_8042_receive(kbdc8042.inport);
 			break;
 		case 0xc1:	/* read input port 3..0 until write to 0x60 */
@@ -543,27 +546,27 @@ WRITE8_HANDLER(kbdc8042_8_w)
 			break;
 		case 0xd1:
 			/* write output port; next byte written to port 60h is placed on
-			 * 8042 output port */
+             * 8042 output port */
 			kbdc8042.operation_write_state = 1;
 			break;
 		case 0xd2:
 			/* write keyboard output register; on PS/2 systems next port 60h
-			 * write is written to port 60h output register as if initiated
-			 * by a device; invokes interrupt if enabled */
+             * write is written to port 60h output register as if initiated
+             * by a device; invokes interrupt if enabled */
 			kbdc8042.operation_write_state = 2;
 			kbdc8042.send_to_mouse = 0;
 			break;
 		case 0xd3:
 			/* write auxillary output register; on PS/2 systems next port 60h
-			 * write is written to port 60h input register as if initiated
-			 * by a device; invokes interrupt if enabled */
+             * write is written to port 60h input register as if initiated
+             * by a device; invokes interrupt if enabled */
 			kbdc8042.operation_write_state = 3;
 			kbdc8042.send_to_mouse = 1;
 			break;
 		case 0xd4:
 			/* write auxillary device; on PS/2 systems the next data byte
-			 * written to input register a port at 60h is sent to the
-			 * auxiliary device  */
+             * written to input register a port at 60h is sent to the
+             * auxiliary device  */
 			kbdc8042.operation_write_state = 4;
 			break;
 		case 0xe0:
@@ -580,10 +583,10 @@ WRITE8_HANDLER(kbdc8042_8_w)
 		case 0xfc:
 		case 0xfe:
 			/* Commands 0xF0...0xFF causes certain output lines to be pulsed
-			 * low for six milliseconds.  The bits pulsed low correspond to
-			 * the bits low set in the command byte.  The only pulse that has
-			 * an effect currently is bit 0, which pulses the CPU's reset line
-			 */
+             * low for six milliseconds.  The bits pulsed low correspond to
+             * the bits low set in the command byte.  The only pulse that has
+             * an effect currently is bit 0, which pulses the CPU's reset line
+             */
 			cpunum_set_input_line(0, INPUT_LINE_RESET, PULSE_LINE);
 			at_8042_set_outport(kbdc8042.outport | 0x02, 0);
 			break;

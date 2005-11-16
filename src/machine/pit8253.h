@@ -1,6 +1,6 @@
 /*****************************************************************************
  *
- *	Programmable Interval Timer 8253/8254
+ *  Programmable Interval Timer 8253/8254
  *
  *****************************************************************************/
 
@@ -29,6 +29,11 @@ READ8_HANDLER ( pit8253_0_r );
 READ8_HANDLER ( pit8253_1_r );
 WRITE8_HANDLER ( pit8253_0_w );
 WRITE8_HANDLER ( pit8253_1_w );
+
+READ16_HANDLER ( pit8253_0_lsb_r );
+READ16_HANDLER ( pit8253_1_lsb_r );
+WRITE16_HANDLER ( pit8253_0_lsb_w );
+WRITE16_HANDLER ( pit8253_1_lsb_w );
 
 READ32_HANDLER ( pit8253_32le_0_r );
 READ32_HANDLER ( pit8253_32le_1_r );

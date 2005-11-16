@@ -1,13 +1,13 @@
 /*********************************************************************
 
-	mc146818.h
+    mc146818.h
 
-	Implementation of the MC146818 chip
+    Implementation of the MC146818 chip
 
-	Real time clock chip with batteru buffered ram
-	Used in IBM PC/AT, several PC clones, Amstrad NC200
+    Real time clock chip with batteru buffered ram
+    Used in IBM PC/AT, several PC clones, Amstrad NC200
 
-	Peter Trauner (peter.trauner@jk.uni-linz.ac.at)
+    Peter Trauner (peter.trauner@jk.uni-linz.ac.at)
 
 *********************************************************************/
 
@@ -21,7 +21,7 @@ typedef enum
 {
 	MC146818_STANDARD,
 	MC146818_IGNORE_CENTURY, // century is NOT set, for systems having other usage of this byte
-	MC146818_ENHANCED 
+	MC146818_ENHANCED
 } MC146818_TYPE;
 
 

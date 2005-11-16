@@ -1,9 +1,9 @@
 /**********************************************************************
 
-	8042 Keyboard Controller Emulation
+    8042 Keyboard Controller Emulation
 
-	This is the keyboard controller used in the IBM AT and further
-	models.  It is a popular controller for PC style keyboards
+    This is the keyboard controller used in the IBM AT and further
+    models.  It is a popular controller for PC style keyboards
 
 **********************************************************************/
 

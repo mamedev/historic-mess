@@ -24,16 +24,16 @@
 	  description of the scan code sets (see the PS/2 Technical Reference
 	  manuals for more information on scan code sets 2 and 3):
 
-	ù  set 1, each key has a base scan code.  Some keys generate
+    *  set 1, each key has a base scan code.  Some keys generate
 	   extra scan codes to generate artificial shift states.  This
 	   is similar to the standard scan code set used on the PC and XT.
-	ù  set 2, each key sends one make scan code and two break scan
+    *  set 2, each key sends one make scan code and two break scan
 	   codes bytes (F0 followed by the make code).	This scan code
 	   set is available on the IBM AT also.
-	ù  set 3, each key sends one make scan code and two break scan
+    *  set 3, each key sends one make scan code and two break scan
 	   codes bytes (F0 followed by the make code) and no keys are
 	   altered by Shift/Alt/Ctrl keys.
-	ù  typematic scan codes are the same as the make scan code
+    *  typematic scan codes are the same as the make scan code
 
 */
 
@@ -300,7 +300,11 @@ static int at_keyboard_queue_size(void);
 void at_keyboard_init(AT_KEYBOARD_TYPE type)
 {
 	keyboard.type = type;
+#ifdef MESS
 	keyboard.input_port_base = 4;
+#else
+	keyboard.input_port_base = 0;
+#endif
 	keyboard.on = 1;
 	keyboard.delay = 60;
 	keyboard.repeat = 8;
@@ -477,7 +481,9 @@ void at_keyboard_polling(void)
 {
 	int i;
 
+#ifdef MESS
 	if (keyboard.on)
+#endif
 	{
 		/* add codes for keys that are set */
 		for( i = 0x01; i < 0x80; i++  )
@@ -793,6 +799,7 @@ void at_keyboard_write(UINT8 data)
 	}
 }
 
+#ifdef MESS
 /***************************************************************************
   unicode_char_to_at_keycode
 ***************************************************************************/
@@ -1222,4 +1229,7 @@ CHARQUEUE_EMPTY( at_keyboard )
 {
 	return at_keyboard_queue_size() == 0;
 }
+#endif /* MESS */
+
+
 

@@ -22,20 +22,26 @@
 
 #include <assert.h>
 #include "driver.h"
+#include "memconv.h"
 #include "machine/8255ppi.h"
-#include "machine/uart8250.h"
-#include "machine/mc146818.h"
-#include "machine/pic8259.h"
 #include "vidhrdw/generic.h"
 
+#include "machine/pic8259.h"
 #include "machine/pit8253.h"
+#include "machine/mc146818.h"
+#include "machine/pcshare.h"
+
+#include "machine/8237dma.h"
+#include "machine/pckeybrd.h"
+
+#ifdef MESS
+#include "machine/uart8250.h"
 #include "vidhrdw/pc_vga.h"
 #include "vidhrdw/pc_cga.h"
 #include "vidhrdw/pc_mda.h"
 #include "vidhrdw/pc_aga.h"
 
 #include "includes/pc_mouse.h"
-#include "machine/pckeybrd.h"
 #include "machine/pc_fdc.h"
 
 #include "includes/pclpt.h"
@@ -44,10 +50,8 @@
 #include "machine/pc_hdc.h"
 #include "machine/nec765.h"
 
-#include "includes/pcshare.h"
 #include "mscommon.h"
-
-#include "machine/8237dma.h"
+#endif /* MESS */
 
 #define VERBOSE_DBG 0       /* general debug messages */
 #if VERBOSE_DBG
@@ -80,6 +84,7 @@ static void pc_keyb_timer(int param);
 
 /* ---------------------------------------------------------------------- */
 
+#ifdef MESS
 /* called when a interrupt is set/cleared from com hardware */
 static void pc_com_interrupt(int nr, int state)
 {
@@ -131,6 +136,7 @@ static uart8250_interface com_interface[4]=
 		pc_com_refresh_connected
 	}
 };
+#endif /* MESS */
 
 
 
@@ -161,7 +167,11 @@ static const struct pit8253_config pc_pit8253_config =
 		}, {
 			4772720/4,				/* pio port c pin 4, and speaker polling enough */
 			NULL,
+#ifdef MESS
 			pc_sh_speaker_change_clock
+#else
+			NULL //pc_sh_speaker_change_clock
+#endif /* MESS */
 		}
 	}
 };
@@ -181,13 +191,17 @@ static const struct pit8253_config pc_pit8254_config =
 		}, {
 			4772720/4,				/* pio port c pin 4, and speaker polling enough */
 			NULL,
+#ifdef MESS
 			pc_sh_speaker_change_clock
+#else
+			NULL //pc_sh_speaker_change_clock
+#endif /* MESS */
 		}
 	}
 };
 
 
-
+#ifdef MESS
 static PC_LPT_CONFIG lpt_config[3]={
 	{
 		1,
@@ -220,6 +234,7 @@ static CENTRONICS_CONFIG cent_config[3]={
 		pc_lpt_handshake_in
 	}
 };
+#endif
 
 
 
@@ -347,15 +362,22 @@ static struct dma8237_interface pc_dma =
 	pc_dma_read_byte,
 	pc_dma_write_byte,
 
+#ifdef MESS
 	{ 0, 0, pc_fdc_dack_r, pc_hdc_dack_r },
 	{ 0, 0, pc_fdc_dack_w, pc_hdc_dack_w },
 	pc_fdc_set_tc_state
+#else
+	{ 0, 0, 0, 0 },
+	{ 0, 0, 0, 0 },
+	0
+#endif
 };
 
 
 
 /* ----------------------------------------------------------------------- */
 
+#ifdef MESS
 static void pc_fdc_interrupt(int state)
 {
 	pic8259_set_irq_line(0, 6, state);
@@ -376,30 +398,45 @@ static const struct pc_fdc_interface fdc_interface =
 	pc_fdc_interrupt,
 	pc_fdc_dma_drq,
 };
+#endif /* MESS */
 
 
 
 /* ----------------------------------------------------------------------- */
 
-static void pc_pic_set_int_line(int interrupt)
+static void pc_pic_set_int_line(int which, int interrupt)
 {
-	cpunum_set_input_line(0, 0, interrupt ? HOLD_LINE : CLEAR_LINE);
+	switch(which)
+	{
+		case 0:
+			/* Master */
+			cpunum_set_input_line(0, 0, interrupt ? HOLD_LINE : CLEAR_LINE);
+			break;
+
+		case 1:
+			/* Slave */
+			pic8259_set_irq_line(0, 2, interrupt);
+			break;
+	}
 }
 
 
 
 void init_pc_common(UINT32 flags)
 {
+#ifdef MESS
 	/* MESS managed RAM */
 	if (mess_ram)
 		memory_set_bankptr(10, mess_ram);
+#endif /* MESS */
 
 	/* PIT */
 	if (flags & PCCOMMON_TIMER_8254)
 		pit8253_init(1, &pc_pit8254_config);
-	else
+	else if (flags & PCCOMMON_TIMER_8253) 
 		pit8253_init(1, &pc_pit8253_config);
 
+#ifdef MESS
 	/* FDC/HDC hardware */
 	pc_fdc_init(&fdc_interface);
 	pc_hdc_setup();
@@ -427,6 +464,7 @@ void init_pc_common(UINT32 flags)
 	/* serial mouse */
 	pc_mouse_set_serial_port(0);
 	pc_mouse_initialise();
+#endif /* MESS */
 
 	/* PC-XT keyboard */
 	if (flags & PCCOMMON_KEYBOARD_AT)
@@ -458,26 +496,7 @@ void init_pc_common(UINT32 flags)
 
 
 
-void pc_mda_init(void)
-{
-	/* Get this out of the way of possibly big character ROMs */
-	UINT8 *gfx = &memory_region(REGION_GFX1)[0x8000];
-	int i;
-    /* just a plain bit pattern for graphics data generation */
-    for (i = 0; i < 256; i++)
-		gfx[i] = i;
-
-	memory_install_read8_handler(0, ADDRESS_SPACE_PROGRAM, 0xb0000, 0xbffff, 0, 0, MRA8_RAM );
-	memory_install_write8_handler(0, ADDRESS_SPACE_PROGRAM, 0xb0000, 0xbffff, 0, 0, pc_video_videoram_w );
-	videoram = memory_region(REGION_CPU1)+0xb0000;
-	videoram_size = 0x10000;
-
-	memory_install_read8_handler(0, ADDRESS_SPACE_IO, 0x3b0, 0x3bf, 0, 0, pc_MDA_r );
-	memory_install_write8_handler(0, ADDRESS_SPACE_IO, 0x3b0, 0x3bf, 0, 0, pc_MDA_w );
-}
-
-
-
+#ifdef MESS
 
 /***********************************/
 /* PC interface to PC COM hardware */
@@ -525,6 +544,7 @@ WRITE32_HANDLER(pc32_COM1_w) { write32le_with_write8_handler(pc_COM1_w, offset, 
 WRITE32_HANDLER(pc32_COM2_w) { write32le_with_write8_handler(pc_COM2_w, offset, data, mem_mask); }
 WRITE32_HANDLER(pc32_COM3_w) { write32le_with_write8_handler(pc_COM3_w, offset, data, mem_mask); }
 WRITE32_HANDLER(pc32_COM4_w) { write32le_with_write8_handler(pc_COM4_w, offset, data, mem_mask); }
+#endif /* MESS */
 
 
 
@@ -533,6 +553,7 @@ WRITE32_HANDLER(pc32_COM4_w) { write32le_with_write8_handler(pc_COM4_w, offset, 
    clock line low for longer means "resync", keyboard sends 0xaa as answer
    will become automatically 0x00 after a while
 */
+
 static struct {
 	UINT8 data;
 	int on;
@@ -594,6 +615,7 @@ void pc_keyboard(void)
 
 
 
+#ifdef MESS
 /*************************************************************************
  *
  *		JOY
@@ -755,3 +777,5 @@ INPUT_PORTS_START( pc_joystick )
 	PORT_START /* IN19 */
 	PORT_BIT(0xff,0x80,IPT_AD_STICK_Y) PORT_SENSITIVITY(100) PORT_KEYDELTA(1) PORT_MINMAX(1,0xff) PORT_CODE_DEC(JOYCODE_2_UP) PORT_CODE_INC(JOYCODE_2_DOWN) PORT_PLAYER(2) PORT_REVERSE PORT_RESET
 INPUT_PORTS_END
+#endif /* MESS */
+

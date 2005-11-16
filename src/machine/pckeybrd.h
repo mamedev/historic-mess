@@ -12,7 +12,9 @@
 #ifndef PCKEYBRD_H
 #define PCKEYBRD_H
 
+#ifdef MESS
 #include "inputx.h"
+#endif /* MESS */
 
 typedef enum
 {
@@ -30,9 +32,11 @@ void at_keyboard_reset(void);
 void at_keyboard_set_scan_code_set(int set);
 void at_keyboard_set_input_port_base(int base);
 
+#ifdef MESS
 QUEUE_CHARS( at_keyboard );
 ACCEPT_CHAR( at_keyboard );
 CHARQUEUE_EMPTY( at_keyboard );
+#endif /* MESS */
 
 INPUT_PORTS_EXTERN( pc_keyboard );
 INPUT_PORTS_EXTERN( at_keyboard );
