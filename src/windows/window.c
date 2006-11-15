@@ -8,6 +8,7 @@
 //============================================================
 
 #define LOG_THREADS			0
+#define LOG_TEMP_PAUSE		0
 
 // Needed for RAW Input
 #define _WIN32_WINNT 0x501
@@ -73,6 +74,7 @@ extern int drawd3d_init(win_draw_callbacks *callbacks);
 #define WM_USER_SET_MINSIZE				(WM_USER + 5)
 #define WM_USER_UI_TEMP_PAUSE			(WM_USER + 6)
 #define WM_USER_REQUEST_EXIT			(WM_USER + 7)
+#define WM_USER_EXEC_FUNC				(WM_USER + 8)
 
 
 
@@ -196,7 +198,7 @@ int winwindow_init(running_machine *machine)
 	size_t temp;
 
 	// determine if we are using multithreading or not
-	multithreading_enabled = options_get_bool("multithreading", FALSE);
+	multithreading_enabled = options_get_bool("multithreading");
 
 	// get the main thread ID before anything else
 	main_threadid = GetCurrentThreadId();
@@ -394,6 +396,15 @@ void winwindow_process_events(int ingame)
 					dispatch = FALSE;
 					break;
 
+				// execute arbitrary function
+				case WM_USER_EXEC_FUNC:
+					{
+						void (*func)(void *) = (void (*)(void *)) message.wParam;
+						void *param = (void *) message.lParam;
+						func(param);
+					}
+					break;
+
 				// forward mouse button downs to the input system
 				case WM_LBUTTONDOWN:
 					input_mouse_button_down(0, GET_X_LPARAM(message.lParam), GET_Y_LPARAM(message.lParam));
@@ -577,7 +588,7 @@ int winwindow_video_window_create(int index, win_monitor_info *monitor, const wi
 
 	// set the specific view
 	sprintf(option, "view%d", index);
-	set_starting_view(index, window, options_get_string(option, TRUE));
+	set_starting_view(index, window, options_get_string(option));
 
 	// remember the current values in case they change
 	window->targetview = render_target_get_view(window->target);
@@ -591,7 +602,7 @@ int winwindow_video_window_create(int index, win_monitor_info *monitor, const wi
 		sprintf(window->title, APPNAME ": %s [%s] - Screen %d", Machine->gamedrv->description, Machine->gamedrv->name, index);
 
 	// set the initial maximized state
-	window->startmaximized = options_get_bool("maximize", TRUE);
+	window->startmaximized = options_get_bool("maximize");
 
 	// finish the window creation on the window thread
 	if (multithreading_enabled)
@@ -802,7 +813,7 @@ static int create_window_class(void)
 
 static void set_starting_view(int index, win_window_info *window, const char *view)
 {
-	const char *defview = options_get_string("view", FALSE);
+	const char *defview = options_get_string("view");
 	int viewindex = -1;
 
 	assert(GetCurrentThreadId() == main_threadid);
@@ -886,6 +897,8 @@ static void set_starting_view(int index, win_window_info *window, const char *vi
 
 void winwindow_ui_pause_from_main_thread(int pause)
 {
+	int old_temp_pause = ui_temp_pause;
+
 	assert(GetCurrentThreadId() == main_threadid);
 
 	// if we're pausing, increment the pause counter
@@ -918,6 +931,9 @@ void winwindow_ui_pause_from_main_thread(int pause)
 			}
 		}
 	}
+
+	if (LOG_TEMP_PAUSE)
+		logerror("winwindow_ui_pause_from_main_thread(): %d --> %d\n", old_temp_pause, ui_temp_pause);
 }
 
 
@@ -945,6 +961,29 @@ void winwindow_ui_pause_from_window_thread(int pause)
 	// otherwise, we just do it directly
 	else
 		winwindow_ui_pause_from_main_thread(pause);
+}
+
+
+
+//============================================================
+//  winwindow_ui_exec_on_main_thread
+//  (window thread)
+//============================================================
+
+void winwindow_ui_exec_on_main_thread(void (*func)(void *), void *param)
+{
+	assert(GetCurrentThreadId() == window_threadid);
+
+	// if we're multithreaded, we have to request a pause on the main thread
+	if (multithreading_enabled)
+	{
+		// request a pause from the main thread
+		PostThreadMessage(main_threadid, WM_USER_EXEC_FUNC, (WPARAM) func, (LPARAM) param);
+	}
+
+	// otherwise, we just do it directly
+	else
+		func(param);
 }
 
 

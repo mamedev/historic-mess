@@ -1,21 +1,21 @@
 /*****************************************************************************
  *
- *	 disasm.c
- *	 portable cosmac cdp1802 emulator interface
+ *   disasm.c
+ *   portable cosmac cdp1802 emulator interface
  *
- *	 Copyright (c) 2000 Peter Trauner, all rights reserved.
+ *   Copyright (c) 2000 Peter Trauner, all rights reserved.
  *
- *	 - This source code is released as freeware for non-commercial purposes.
- *	 - You are free to use and redistribute this code in modified or
- *	   unmodified form, provided you list me in the credits.
- *	 - If you modify this source code, you must add a notice to each modified
- *	   source file that it has been changed.  If you're a nice person, you
- *	   will clearly mark each change too.  :)
- *	 - If you wish to use this for commercial purposes, please contact me at
- *	   peter.trauner@jk.uni-linz.ac.at
- *	 - The author of this copywritten work reserves the right to change the
- *	   terms of its usage and license at any time, including retroactively
- *	 - This entire notice must remain in the source code.
+ *   - This source code is released as freeware for non-commercial purposes.
+ *   - You are free to use and redistribute this code in modified or
+ *     unmodified form, provided you list me in the credits.
+ *   - If you modify this source code, you must add a notice to each modified
+ *     source file that it has been changed.  If you're a nice person, you
+ *     will clearly mark each change too.  :)
+ *   - If you wish to use this for commercial purposes, please contact me at
+ *     peter.trauner@jk.uni-linz.ac.at
+ *   - The author of this copywritten work reserves the right to change the
+ *     terms of its usage and license at any time, including retroactively
+ *   - This entire notice must remain in the source code.
  *
  *****************************************************************************/
 
@@ -97,14 +97,14 @@ static const struct { const char *mnemonic; Adr adr; } table[]={
 
 };
 
-unsigned DasmCdp1802(char *dst, unsigned oldpc)
+unsigned DasmCdp1802(char *dst, unsigned oldpc, const UINT8 *oprom)
 {
 	int pc;
 	int oper;
 	UINT16 absolut;
 	oldpc&=0xffff;
 	pc=oldpc;
-	oper=program_read_byte(pc++);
+	oper=oprom[pc++ - oldpc];
 
 	switch(oper&0xf0) {
 	case 0:
@@ -144,16 +144,16 @@ unsigned DasmCdp1802(char *dst, unsigned oldpc)
 				sprintf(dst,"%-5s",table[oper].mnemonic);
 				break;
 			case Imm:
-				sprintf(dst,"%-5s#%.2x",table[oper].mnemonic,program_read_byte(pc++));
+				sprintf(dst,"%-5s#%.2x",table[oper].mnemonic,oprom[pc++ - oldpc]);
 				break;
 			case Low:
-				absolut=program_read_byte(pc++);
+				absolut=oprom[pc++ - oldpc];
 				absolut|=pc&0xff00;
 				sprintf(dst,"%-5s%.4x",table[oper].mnemonic,absolut);
 				break;
 			case Abs:
-				absolut=program_read_byte(pc++)<<8;
-				absolut|=program_read_byte(pc++);
+				absolut=oprom[pc++ - oldpc]<<8;
+				absolut|=oprom[pc++ - oldpc];
 				sprintf(dst,"%-5s%.4x",table[oper].mnemonic,absolut);
 				break;
 			default:

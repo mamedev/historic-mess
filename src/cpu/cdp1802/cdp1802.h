@@ -1,21 +1,21 @@
 /*****************************************************************************
  *
- *	 cdp1802.h
- *	 portable cosmac cdp1802 emulator interface
+ *   cdp1802.h
+ *   portable cosmac cdp1802 emulator interface
  *
- *	 Copyright (c) 2000 Peter Trauner, all rights reserved.
+ *   Copyright (c) 2000 Peter Trauner, all rights reserved.
  *
- *	 - This source code is released as freeware for non-commercial purposes.
- *	 - You are free to use and redistribute this code in modified or
- *	   unmodified form, provided you list me in the credits.
- *	 - If you modify this source code, you must add a notice to each modified
- *	   source file that it has been changed.  If you're a nice person, you
- *	   will clearly mark each change too.  :)
- *	 - If you wish to use this for commercial purposes, please contact me at
- *	   peter.trauner@jk.uni-linz.ac.at
- *	 - The author of this copywritten work reserves the right to change the
- *	   terms of its usage and license at any time, including retroactively
- *	 - This entire notice must remain in the source code.
+ *   - This source code is released as freeware for non-commercial purposes.
+ *   - You are free to use and redistribute this code in modified or
+ *     unmodified form, provided you list me in the credits.
+ *   - If you modify this source code, you must add a notice to each modified
+ *     source file that it has been changed.  If you're a nice person, you
+ *     will clearly mark each change too.  :)
+ *   - If you wish to use this for commercial purposes, please contact me at
+ *     peter.trauner@jk.uni-linz.ac.at
+ *   - The author of this copywritten work reserves the right to change the
+ *     terms of its usage and license at any time, including retroactively
+ *   - This entire notice must remain in the source code.
  *
  *****************************************************************************/
 
@@ -39,7 +39,8 @@ enum {
 // CDP1802 Registers
 
 enum {
-	CDP1802_P = 1,	// Designates which register is Program Counter
+	CDP1802_PC = 1,
+	CDP1802_P,		// Designates which register is Program Counter
 	CDP1802_X,		// Designates which register is Data Pointer
 	CDP1802_D,		// Data Register (Accumulator)
 	CDP1802_B,		// Auxiliary Holding Register
@@ -67,14 +68,14 @@ enum {
 	CDP1802_Q,		// Output Flip-Flop
 	CDP1802_N,		// Holds Low-Order Instruction Digit
 	CDP1802_I,		// Holds High-Order Instruction Digit
-	CDP1802_IRQ_STATE
+	CDP1802_IRQ_STATE,
 };
 
 // CDP1802 Configuration
 
 typedef struct {
 	/* called after execution of an instruction with cycles,
-	   return cycles taken by dma hardware */
+       return cycles taken by dma hardware */
 	void (*dma)(int cycles);
 	void (*out_q)(int level);
 	int (*in_ef)(void);
@@ -88,6 +89,6 @@ extern int cdp1802_icount;				// cycle count
 
 void cdp1802_get_info(UINT32 state, union cpuinfo *info);
 
-unsigned DasmCdp1802(char *dst, unsigned oldpc);
+unsigned DasmCdp1802(char *dst, unsigned oldpc, const UINT8 *oprom);
 
 #endif
