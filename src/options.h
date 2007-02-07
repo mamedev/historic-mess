@@ -4,7 +4,7 @@
 
     Options file and command line management.
 
-    Copyright (c) 1996-2006, Nicola Salmoria and the MAME Team.
+    Copyright (c) 1996-2007, Nicola Salmoria and the MAME Team.
     Visit http://mamedev.org for licensing and usage restrictions.
 
 ***************************************************************************/
@@ -37,12 +37,9 @@
 #define OPTION_GAMENAME				OPTION_UNADORNED(0)
 
 /* core search path options */
-#ifdef MESS
-#define OPTION_ROMPATH				"biospath"
-#define OPTION_HASHPATH				"hashpath"
-#define OPTION_IMAGEPATH			"softwarepath"
-#else
 #define OPTION_ROMPATH				"rompath"
+#ifdef MESS
+#define OPTION_HASHPATH				"hashpath"
 #endif
 #define OPTION_SAMPLEPATH			"samplepath"
 #define OPTION_ARTPATH				"artpath"
